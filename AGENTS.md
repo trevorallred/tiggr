@@ -11,13 +11,14 @@ single-package layout, so a new package (e.g. a future AI test-runner) is just a
 under `packages/`, not a restructure.
 
 - `packages/engine/` — the deterministic, dependency-aware test-execution engine. A standalone
-  port of `packages/tigger` from the Terros sales monorepo (see its `README.md`/`CLAUDE.md`).
-  Deliberately has **zero** dependency on any Terros-internal package (`@terros/common`,
-  `@config/*`): the handful of utilities it used (`Logger`, `isEmpty`/`isNotEmpty`,
-  `messageFromError`) are reimplemented locally under `packages/engine/src/util/`, trimmed to only
-  what tigger actually needs (e.g. no AWS Lambda JSON log formatting). Keep it that way — never add
-  a dependency back to a Terros-internal package here; this repo is meant to be standalone and
-  potentially open-sourceable.
+  port of `packages/tigger` from the Terros sales monorepo (see its `README.md` for usage; the
+  dependency-resolution/teardown/loop logic is documented in the code itself, mainly
+  `packages/engine/src/main.ts`). Deliberately has **zero** dependency on any Terros-internal
+  package (`@terros/common`, `@config/*`): the handful of utilities it used (`Logger`,
+  `isEmpty`/`isNotEmpty`, `messageFromError`) are reimplemented locally under
+  `packages/engine/src/util/`, trimmed to only what tigger actually needs (e.g. no AWS Lambda JSON
+  log formatting). Keep it that way — never add a dependency back to a Terros-internal package
+  here; this repo is meant to be standalone and potentially open-sourceable.
 
 ## Build & test
 
