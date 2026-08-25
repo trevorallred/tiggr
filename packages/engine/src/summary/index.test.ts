@@ -1,5 +1,5 @@
-import { type TestRunnerOutput, type TestRun } from '../types'
-import { printTestOutput } from './index'
+import { type TestRunnerOutput, type TestRun } from '../types.js'
+import { printTestOutput } from './index.js'
 
 function stubTest(id: string, partial?: Partial<TestRun>): TestRun {
   return {
@@ -16,6 +16,10 @@ function stubTest(id: string, partial?: Partial<TestRun>): TestRun {
 describe('printTestOutput', () => {
   describe('3 tests: pass, fail, skip', () => {
     const input: TestRunnerOutput = {
+      runId: 'run-1',
+      startedAt: '2026-08-24T00:00:00.000Z',
+      completedAt: '2026-08-24T00:00:00.100Z',
+      engineVersion: '0.0.0',
       result: 'pass',
       tests: [
         stubTest('test1', { duration: 100, output: 'output1', passed: 'pass' }),
@@ -45,6 +49,10 @@ describe('printTestOutput', () => {
   })
   it('1 test with no duration', () => {
     const input: TestRunnerOutput = {
+      runId: 'run-1',
+      startedAt: '2026-08-24T00:00:00.000Z',
+      completedAt: '2026-08-24T00:00:00.100Z',
+      engineVersion: '0.0.0',
       result: 'pass',
       tests: [stubTest('test1', { duration: 100, output: 'output1', passed: 'pass' })],
       duration: 0,
@@ -56,6 +64,10 @@ describe('printTestOutput', () => {
   })
   it('2 tests with pass/skip', () => {
     const input: TestRunnerOutput = {
+      runId: 'run-1',
+      startedAt: '2026-08-24T00:00:00.000Z',
+      completedAt: '2026-08-24T00:00:00.100Z',
+      engineVersion: '0.0.0',
       result: 'pass',
       tests: [
         stubTest('test1', { duration: 100, output: 'output1', passed: 'pass' }),

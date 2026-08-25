@@ -18,11 +18,46 @@ importers:
         specifier: ^4.1.0
         version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
 
+  packages/cli:
+    dependencies:
+      '@tigger/engine':
+        specifier: workspace:*
+        version: link:../engine
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
+
   packages/engine:
     devDependencies:
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.3
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
+
+  sample-app:
+    dependencies:
+      '@tigger/engine':
+        specifier: workspace:*
+        version: link:../packages/engine
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      tigger:
+        specifier: workspace:*
+        version: link:../packages/cli
       typescript:
         specifier: ^6.0.2
         version: 6.0.3

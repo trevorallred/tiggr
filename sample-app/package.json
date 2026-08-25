@@ -1,22 +1,21 @@
 {
-  "name": "@tigger/engine",
+  "name": "@tigger/sample-app",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": {
-      "types": "./build/index.d.ts",
-      "import": "./build/index.js"
-    }
-  },
-  "sideEffects": false,
   "scripts": {
     "build": "tsc --build",
     "clean": "rm -rf build && rm -f tsconfig.tsbuildinfo",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "start": "node build/server.js",
+    "dogfood": "node build/dogfood.js"
+  },
+  "dependencies": {
+    "@tigger/engine": "workspace:*"
   },
   "devDependencies": {
+    "tigger": "workspace:*",
     "@types/node": "^24.0.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.0"

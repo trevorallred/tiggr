@@ -4,6 +4,12 @@ export type PassFail = 'pass' | 'fail' | 'skip'
 
 export type MaybePromise<T> = T | Promise<T>
 
+export type JsonPrimitive = string | number | boolean | null
+
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
+
+export type JsonObject = { [key: string]: JsonValue }
+
 export type DeepReadonly<Value> = Value extends (...args: never[]) => unknown
   ? Value
   : Value extends readonly (infer Item)[]
@@ -14,7 +20,7 @@ export type DeepReadonly<Value> = Value extends (...args: never[]) => unknown
 
 /** A read-only view of outputs produced by tests that have already run. */
 export type Outputs = {
-  get<Output = unknown>(id: TestId): Output | undefined
+  get<Output = JsonValue>(id: TestId): Output | undefined
   has(id: TestId): boolean
 }
 
@@ -23,28 +29,28 @@ export type HttpObservation = {
   method: string
   path: string
   status: number
-  [key: string]: unknown
+  [key: string]: JsonValue
 }
 
 export type EventObservation = {
   type: 'event'
   name: string
-  [key: string]: unknown
+  [key: string]: JsonValue
 }
 
 export type PollObservation = {
   type: 'poll'
   attempts: number
   settled: boolean
-  [key: string]: unknown
+  [key: string]: JsonValue
 }
 
 export type AssertionObservation = {
   type: 'assertion'
-  expected: unknown
-  actual: unknown
+  expected: JsonValue
+  actual: JsonValue
   passed: boolean
-  [key: string]: unknown
+  [key: string]: JsonValue
 }
 
 /**
@@ -56,14 +62,14 @@ export type Observation =
   | EventObservation
   | PollObservation
   | AssertionObservation
-  | { type: string; [key: string]: unknown }
+  | { type: string; [key: string]: JsonValue }
 
 export type Provenance = {
   origin: string
-  issueLink: string
-  createdBy: string
-  createdAt: string
-  reasoning: string
+  reference?: string
+  createdBy?: string
+  createdAt?: string
+  reasoning?: string
 }
 
 export type TestContext<Config extends object> = {
@@ -78,7 +84,7 @@ export type TestDefinition<Config extends object = Record<string, never>, Output
   invariants?: string[]
   provenance?: Provenance
   dependsOn?: TestId[]
-  /** Reserved for resource() integration; resources are not part of the core scheduler yet. */
+  /** Logical singleton resource IDs; compiled to ordinary DAG dependencies before scheduling. */
   uses?: TestId[]
   tearsDown?: TestId
   tags?: string[]
@@ -89,8 +95,26 @@ export type TestDefinition<Config extends object = Record<string, never>, Output
   /** Wait this many milliseconds before the scheduler begins its next scan. */
   waitAfter?: number
   run(context: TestContext<Config>): MaybePromise<Output>
-  verify?(context: TestContext<Config>): MaybePromise<void>
+  verify?(context: TestContext<Config>, output: Output): MaybePromise<void>
 }
+
+export type ResourceDefinition<
+  Config extends object = Record<string, never>,
+  CreateOutput = unknown,
+  DestroyOutput = unknown,
+> = {
+  readonly kind: 'resource'
+  /** Logical singleton name referenced by tests through uses. */
+  id: TestId
+  /** The one test that creates this resource. */
+  create: TestDefinition<Config, CreateOutput>
+  /** The one teardown test that destroys this resource. */
+  destroy: TestDefinition<Config, DestroyOutput>
+}
+
+export type SuiteDefinition<Config extends object = Record<string, never>> =
+  | TestDefinition<Config, unknown>
+  | ResourceDefinition<Config, unknown, unknown>
 
 /** Define a test while retaining inference for its config and output types. */
 export function test<Config extends object = Record<string, never>, Output = unknown>(
@@ -99,8 +123,17 @@ export function test<Config extends object = Record<string, never>, Output = unk
   return definition
 }
 
+/** Define a singleton lifecycle that runTests compiles into ordinary DAG nodes. */
+export function resource<Config extends object = Record<string, never>, CreateOutput = unknown, DestroyOutput = unknown>(
+  definition: Omit<ResourceDefinition<Config, CreateOutput, DestroyOutput>, 'kind'>
+): ResourceDefinition<Config, CreateOutput, DestroyOutput> {
+  return { kind: 'resource', ...definition }
+}
+
 export type RunTestsOptions<Config extends object> = {
   config: Config
+  /** JSON-safe caller context copied into the run envelope. */
+  metadata?: JsonObject
   /** Mark runnable tests as passed without invoking run or verify. */
   dryRun?: boolean
   includeStartMessage?: boolean
@@ -126,7 +159,7 @@ export type TestRun = {
   waitAfter?: number
   loop?: number
   duration?: number
-  output?: unknown
+  output?: JsonValue
   observations: Observation[]
   complete: boolean
   tornDown?: boolean
@@ -136,6 +169,11 @@ export type TestRun = {
 }
 
 export type TestRunnerOutput = {
+  runId: string
+  startedAt: string
+  completedAt: string
+  engineVersion: string
+  metadata?: JsonObject
   result: PassFail
   duration: number
   tests: TestRun[]
