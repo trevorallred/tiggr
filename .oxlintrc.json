@@ -5,8 +5,22 @@
     "correctness": "error"
   },
   "rules": {
+    "eslint/complexity": ["error", 12],
+    "eslint/max-depth": ["error", 3],
+    "eslint/max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
+    "eslint/max-lines-per-function": [
+      "error",
+      { "max": 50, "skipBlankLines": true, "skipComments": true }
+    ],
     "typescript/consistent-type-imports": "error",
     "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-function-type": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
     "typescript/no-unused-vars": [
       "error",
       {
@@ -14,7 +28,10 @@
         "caughtErrorsIgnorePattern": "^_",
         "varsIgnorePattern": "^_"
       }
-    ]
+    ],
+    "typescript/only-throw-error": "error",
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/restrict-plus-operands": "error"
   },
   "ignorePatterns": ["**/build/**", "**/coverage/**", "**/node_modules/**"],
   "options": {
