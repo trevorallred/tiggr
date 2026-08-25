@@ -4,6 +4,7 @@ import type { TestRunnerOutput } from '@tigger/engine'
 import { startSampleServer } from './server.js'
 
 const sampleRoot = fileURLToPath(new URL('../', import.meta.url))
+const cliPath = fileURLToPath(new URL('../../packages/cli/build/cli.js', import.meta.url))
 const running = await startSampleServer()
 
 try {
@@ -43,7 +44,7 @@ try {
 
 function executeCli(baseUrl: string): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn('pnpm', ['exec', 'tigger', 'run', '--json'], {
+    const child = spawn(process.execPath, [cliPath, 'run', '--json'], {
       cwd: sampleRoot,
       env: { ...process.env, TIGGER_BASE_URL: baseUrl },
       stdio: ['ignore', 'pipe', 'pipe'],

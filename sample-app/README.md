@@ -23,6 +23,6 @@ After building the workspace, run the full app/CLI boundary with:
 pnpm --filter @tigger/sample-app dogfood
 ```
 
-The dogfood runner starts the server on an ephemeral localhost port, invokes the built `tigger run`
-binary, requires exit code 0, and inspects the JSON artifact for the full graph, multi-attempt
-polling, and a passing isolation observation.
+The dogfood runner starts the server on an ephemeral localhost port, invokes the built Tigger CLI
+entrypoint with `run`, requires exit code 0, and inspects the JSON artifact for the full graph,
+multi-attempt polling, and a passing isolation observation.
