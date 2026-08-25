@@ -1,14 +1,35 @@
 {
-  "name": "@tigger/engine",
-  "version": "0.0.0",
-  "private": true,
+  "name": "tiggr",
+  "version": "2.0.0",
+  "description": "A deterministic, dependency-aware test execution engine for agent-driven integration testing.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trevorallred/tiggr.git",
+    "directory": "packages/engine"
+  },
+  "homepage": "https://github.com/trevorallred/tiggr#readme",
+  "bugs": {
+    "url": "https://github.com/trevorallred/tiggr/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "exports": {
     ".": {
       "types": "./build/index.d.ts",
-      "import": "./build/index.js"
+      "import": "./build/index.js",
+      "default": "./build/index.js"
     }
   },
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsc --build",

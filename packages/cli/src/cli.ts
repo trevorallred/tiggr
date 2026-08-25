@@ -10,7 +10,7 @@ import {
   type JsonObject,
   type SuiteDefinition,
   type TestRunnerOutput,
-} from '@tigger/engine'
+} from 'tiggr'
 
 export type CliOptions = {
   command: 'run'
@@ -42,7 +42,7 @@ export function parseCliArgs(args: string[]): CliOptions {
   })
 
   const [command, ...ids] = positionals
-  if (command !== 'run') throw new Error('Usage: tigger run [ids...] [--dry-run] [--include <id-or-tag>] [--exclude <id-or-tag>] [--json|--pretty]')
+  if (command !== 'run') throw new Error('Usage: tiggr run [ids...] [--dry-run] [--include <id-or-tag>] [--exclude <id-or-tag>] [--json|--pretty]')
   if (values.json && values.pretty) throw new Error('--json and --pretty cannot be used together')
 
   return {
@@ -76,10 +76,10 @@ export function formatOutput(result: TestRunnerOutput, format: 'json' | 'pretty'
 }
 
 async function loadSuite(cwd: string): Promise<SuiteModule> {
-  const explicit = process.env.TIGGER_CONFIG
-  const candidates = explicit ? [resolve(cwd, explicit)] : ['tigger.config.mjs', 'tigger.config.js'].map((name) => resolve(cwd, name))
+  const explicit = process.env.TIGGR_CONFIG
+  const candidates = explicit ? [resolve(cwd, explicit)] : ['tiggr.config.mjs', 'tiggr.config.js'].map((name) => resolve(cwd, name))
   const configPath = candidates.find(existsSync)
-  if (!configPath) throw new Error(`No tigger.config.mjs or tigger.config.js found in ${cwd}`)
+  if (!configPath) throw new Error(`No tiggr.config.mjs or tiggr.config.js found in ${cwd}`)
 
   const imported = (await import(pathToFileURL(configPath).href)) as { default?: unknown }
   const suite = imported.default
@@ -106,7 +106,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(new URL(im
       process.exitCode = code
     },
     (error: unknown) => {
-      process.stderr.write(`tigger: ${error instanceof Error ? error.message : String(error)}\n`)
+      process.stderr.write(`tiggr: ${error instanceof Error ? error.message : String(error)}\n`)
       process.exitCode = 2
     }
   )

@@ -44,7 +44,7 @@ describe('printTestOutput', () => {
       expect(output).not.toMatch('output3')
     })
     it('Duration and speedup', () => {
-      expect(output).toMatch('Duration: 100ms, 75% speed up with Tigger')
+      expect(output).toMatch('Duration: 100ms, 75% speed up with Tiggr')
     })
   })
   it('1 test with no duration', () => {

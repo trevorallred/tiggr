@@ -1,7 +1,5 @@
-// Minimal standalone stand-in for `messageFromError` from `@terros/common`. The original also
-// special-cases Terros-specific `TantalimError`/`APIError` classes that don't exist outside the
-// sales monorepo; this keeps only the generic Error/string/object handling tigger needs to turn a
-// caught test callback failure into a display string.
+// Minimal standalone error normalization. This intentionally keeps only the generic
+// Error/string/object handling Tiggr needs to turn a caught callback failure into a display string.
 export function messageFromError(error: unknown): string | undefined {
   if (error === undefined) return
   if (error === null) return

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import type { TestRunnerOutput } from '@tigger/engine'
+import type { TestRunnerOutput } from 'tiggr'
 import { startSampleServer } from './server.js'
 
 const sampleRoot = fileURLToPath(new URL('../', import.meta.url))
@@ -11,7 +11,7 @@ try {
   const execution = await executeCli(running.baseUrl)
   process.stdout.write(execution.stdout)
   if (execution.stderr) process.stderr.write(execution.stderr)
-  if (execution.code !== 0) throw new Error(`tigger run exited with ${execution.code}`)
+  if (execution.code !== 0) throw new Error(`tiggr run exited with ${execution.code}`)
 
   const result = JSON.parse(execution.stdout) as TestRunnerOutput
   if (result.result !== 'pass') throw new Error(`Expected a passing run, received ${result.result}`)
@@ -46,7 +46,7 @@ function executeCli(baseUrl: string): Promise<{ code: number | null; stdout: str
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cliPath, 'run', '--json'], {
       cwd: sampleRoot,
-      env: { ...process.env, TIGGER_BASE_URL: baseUrl },
+      env: { ...process.env, TIGGR_BASE_URL: baseUrl },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     let stdout = ''

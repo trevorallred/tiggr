@@ -1,5 +1,5 @@
 import { parseCliArgs, formatOutput } from './cli.js'
-import type { TestRunnerOutput } from '@tigger/engine'
+import type { TestRunnerOutput } from 'tiggr'
 
 describe('CLI v0', () => {
   it('parses positional IDs and all selection/output flags', () => {

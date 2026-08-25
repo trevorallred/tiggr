@@ -1,5 +1,5 @@
 {
-  "name": "@tigger/sample-app",
+  "name": "@tiggr/sample-app",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,10 +12,10 @@
     "dogfood": "node build/dogfood.js"
   },
   "dependencies": {
-    "@tigger/engine": "workspace:*"
+    "tiggr": "workspace:*"
   },
   "devDependencies": {
-    "tigger": "workspace:*",
+    "@tiggr/cli": "workspace:*",
     "@types/node": "^24.0.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.0"

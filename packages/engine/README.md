@@ -1,9 +1,9 @@
-# @tigger/engine
+# tiggr
 
-Tigger is a small, deterministic, dependency-aware test execution engine. It runs tests in a DAG,
+Tiggr is a small, deterministic, dependency-aware test execution engine. It runs tests in a DAG,
 keeps test data provenance explicit through per-test outputs, and captures structured observations
 as part of each run record. It has no knowledge of any application domain and no dependency on
-Terros-internal packages.
+internal proprietary packages.
 
 ## Defining tests
 
@@ -12,7 +12,7 @@ optional `verify` function can assert the result; when it is omitted, a test pas
 `run` does not throw.
 
 ```typescript
-import { resource, runTests, test } from '@tigger/engine'
+import { resource, runTests, test } from 'tiggr'
 
 type Config = {
   baseUrl: string

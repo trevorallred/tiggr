@@ -36,7 +36,7 @@ export function printTestOutput(raw: TestRunnerOutput): string {
   addLine(buildTestSummaryOutput(input))
 
   if (totalDuration) {
-    addLine(`Duration: ${totalDuration}, ${speedUp}% speed up with Tigger`)
+    addLine(`Duration: ${totalDuration}, ${speedUp}% speed up with Tiggr`)
   }
 
   return output.join('\n')
