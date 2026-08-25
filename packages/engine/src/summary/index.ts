@@ -3,7 +3,7 @@ import * as color from './color'
 import { simplifyRunnerOutput } from './reduce'
 import { type TestRunSummary } from './types'
 
-export function printTestOutput<T>(raw: TestRunnerOutput<T>): string {
+export function printTestOutput(raw: TestRunnerOutput): string {
   const { showSkipped = false } = raw
   const input = simplifyRunnerOutput(raw)
   const { tags, totalDuration, speedUp, failed, tests } = input

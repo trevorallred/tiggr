@@ -1,265 +1,229 @@
-import { Logger } from './util/logger'
-import { isEmpty, isNotEmpty } from './util/isEmpty'
 import { messageFromError } from './util/error'
+import { Logger } from './util/logger'
 import {
-  type TestDefinition,
-  type TestRun,
-  type TestEvaluationOutput,
+  type Observation,
+  type Outputs,
   type PassFail,
   type RunTestsOptions,
-  type TestDefinitionWithoutState,
-  type TestRunnerOutput,
-  type WithTestId,
-  type TestRunWithoutState,
+  type DeepReadonly,
+  type TestContext,
+  type TestDefinition,
   type TestId,
+  type TestRun,
+  type TestRunnerOutput,
 } from './types'
-import { readStateFromFile, writeStateToFile } from './state'
-import { updateOptions } from './options'
 
 const logger = new Logger('tester')
-// logger.level = 'verbose'
-
 const MAX_LOOPS = 100
+const RESCAN_DELAY_MS = 500
 
-export async function runTests<State>(
-  testDefinitions: TestDefinition<State>[],
-  inputOptions: RunTestsOptions<State>
-): Promise<TestRunnerOutput<State>> {
-  const start = Date.now()
-  const options = updateOptions(inputOptions)
-  logger.info('Starting with options', options)
-  const state: State = {
-    ...readStateFromFile<State>(options.logDirectory),
-    ...options.initial,
-  }
+type RunnableTest<Config extends object> = TestRun & {
+  definition: TestDefinition<Config, unknown>
+}
 
-  const { includeStartMessage = true } = options
+/** Run a dependency-aware suite and return its complete structured result. */
+export async function runTests<Config extends object>(
+  definitions: TestDefinition<Config, unknown>[],
+  options: RunTestsOptions<Config>
+): Promise<TestRunnerOutput> {
+  validateDefinitions(definitions)
+
+  const suiteStart = Date.now()
+  const config = deepFreeze(structuredClone(options.config))
+  const outputValues = new Map<TestId, unknown>()
+  const outputs = createOutputs(outputValues)
+  const tests = definitions.map(startTest)
+  const testsById = new Map(tests.map((current) => [current.id, current]))
+  const onlyIsUsed = definitions.some((definition) => definition.only && !definition.skip)
+  const includeStartMessage = options.includeStartMessage ?? true
+
   includeStartMessage && logger.info('Starting tests')
-  const testOutputs: TestRun<State>[] = testDefinitions.map(startTest)
-  const testMap = new Map<string, TestRun<State>>()
-  testOutputs.forEach((t) => testMap.set(t.id, t))
-  const onlyArgUsed = testDefinitions.some((t) => t.only && !t.skip)
 
-  function findTest(id: string): TestRun<State> {
-    const test = testMap.get(id)
-    if (test) return test
+  function findTest(id: TestId): RunnableTest<Config> {
+    const found = testsById.get(id)
+    if (found) return found
     throw new Error(`Test ${id} not found`)
   }
 
-  let done = false
   let loop = 0
-  function updateTestOutput(t: TestRun<State>, output: TestEvaluationOutput, duration: number, passed: PassFail): void {
-    t.complete = true
-    t.duration = duration
-    t.output = output
-    t.loop = loop
-    t.passed = passed
-    isTreeTornDown(t)
+
+  function finishTest(testRun: RunnableTest<Config>, passed: PassFail, duration: number): void {
+    testRun.complete = true
+    testRun.duration = duration
+    testRun.loop = loop
+    testRun.passed = passed
+    updateTornDownTree(testRun)
   }
 
-  function isTreeTornDown(test: TestRun<State>): void {
-    if (test.tornDown) return
-    const childrenNotTornDown = testOutputs.filter((t) => {
-      if (t.id === test.id) return false
-      if (t.tornDown) return false
-      if (t.tearsDown === test.id) return true
-      if (t.dependsOn?.includes(test.id)) return true
-      return false
+  function updateTornDownTree(testRun: RunnableTest<Config>): void {
+    if (testRun.tornDown) return
+
+    const unfinishedChildren = tests.filter((candidate) => {
+      if (candidate.id === testRun.id || candidate.tornDown) return false
+      return candidate.tearsDown === testRun.id || candidate.dependsOn?.includes(testRun.id) === true
     })
 
-    logger.verbose(`${test.id}: childrenNotTornDown`, childrenNotTornDown.map(toTestId).join(', '))
-    test.tornDown = isEmpty(childrenNotTornDown)
-    if (test.tearsDown) {
-      const tearsDown = findTest(test.tearsDown)
-      isTreeTornDown(tearsDown)
-    }
-    test.dependsOn?.forEach((t) => {
-      const dependsOn = findTest(t)
-      isTreeTornDown(dependsOn)
+    testRun.tornDown = unfinishedChildren.length === 0
+    if (!testRun.tornDown) return
+
+    if (testRun.tearsDown) updateTornDownTree(findTest(testRun.tearsDown))
+    testRun.dependsOn?.forEach((id) => updateTornDownTree(findTest(id)))
+  }
+
+  function shouldRunThisLoop(testRun: RunnableTest<Config>): boolean {
+    if (testRun.complete) return false
+
+    const dependencies = testRun.dependsOn ?? []
+    if (dependencies.some((id) => !findTest(id).complete)) return false
+    if (!testRun.tearsDown) return true
+
+    const targetId = testRun.tearsDown
+    return !tests.some((candidate) => {
+      if (candidate.id === testRun.id) return false
+      if (candidate.id === targetId && !candidate.complete) return true
+      if (candidate.tornDown) return false
+      return candidate.dependsOn?.includes(targetId) === true
     })
   }
 
-  function shouldRunTestThisLoop(test: TestRun<State>): boolean {
-    const { dependsOn = [], tearsDown } = test
-    if (test.complete) return false
-    logger.verbose(`${test.id}: Should we run?`)
-    const dependentTestsNotComplete = dependsOn.filter((id) => !findTest(id).complete)
-    if (isNotEmpty(dependentTestsNotComplete)) {
-      const list = dependentTestsNotComplete.join(', ')
-      logger.verbose(`${test.id}: still depends on ${list}`)
-      return false
-    }
-    if (!tearsDown) return true
+  function skipReason(testRun: RunnableTest<Config>): string | undefined {
+    if (testRun.skip) return 'test.skip = true'
 
-    const testsStillUsingTearDownTarget: TestId[] = testOutputs
-      .filter((t2) => {
-        if (t2.id === test.id) return false
-        // Look for any test that has not completed and is a prerequisite for this test
-        if (t2.id === tearsDown && isNotComplete(t2)) {
-          logger.verbose(`  ${test.id}: ${test.id} should teardown ${t2.id} but it's not complete`)
-          return true
-        }
-        if (t2.tornDown) {
-          logger.verbose(`  ${test.id}: ${t2.id} is torn down`)
-          return false
-        }
-        if (!t2.dependsOn) {
-          logger.verbose(`  ${test.id}: ${t2.id} doesn't depend on anything`)
-          return false
-        }
-        const dependsOnTearDown = t2.dependsOn.includes(tearsDown)
-        if (dependsOnTearDown) {
-          logger.verbose(`  ${test.id}: ${t2.id} depends on ${tearsDown}`)
-          return true
-        } else {
-          logger.verbose(`  ${test.id}: ${t2.id} doesn't depend on ${tearsDown}`)
-        }
-        return dependsOnTearDown
-      })
-      .map(toTestId)
-    if (isNotEmpty(testsStillUsingTearDownTarget)) {
-      const list = testsStillUsingTearDownTarget.join(', ')
-      logger.verbose(`${test.id}: Need to wait to teardown because ${tearsDown} is still being used by: ${list}`)
-      return false
-    }
-
-    return true
-  }
-
-  async function runTest(t: TestRun<State>): Promise<void> {
-    const testStart = Date.now()
-    const skipReason = shouldSkip(t)
-    if (skipReason !== false) {
-      updateTestOutput(t, skipReason, 0, 'skip')
-      return
-    }
-    includeStartMessage && logger.info(`Loop:${loop} ${t.id} started`)
-    try {
-      if (options.dryRun) {
-        logger.info(`Loop:${t.loop} ${t.id} dryRun completed`)
-        updateTestOutput(t, 'dryRun', Date.now() - testStart, 'pass')
-        return
-      }
-      const output = await t.evaluate(state)
-      updateTestOutput(t, output, Date.now() - testStart, 'pass')
-      logger.info(`Loop:${t.loop} ${t.id} completed ${t.duration}ms ${outputString(t)}`)
-      t.waitAfter && (await wait(t.waitAfter))
-    } catch (error) {
-      updateTestOutput(t, messageFromError(error), Date.now() - testStart, 'fail')
-      logger.warn(`Loop:${t.loop} ${t.id} failed`, error)
-    }
-  }
-
-  function shouldSkip(t: TestRun<State>): string | false {
-    if (t.skip) return 'test.skip = true'
-
-    const dependentTestsFailed = t.dependsOn?.filter((id) => findTest(id).passed !== 'pass')
-    if (isNotEmpty(dependentTestsFailed)) {
-      const list = dependentTestsFailed.join(', ')
-      logger.verbose(`${t.id}: previous tests failed or skipped: ${list}`)
+    if (testRun.dependsOn?.some((id) => findTest(id).passed !== 'pass')) {
       return 'previous tests failed or skipped'
     }
 
-    const tearsDownFailed = t.tearsDown && findTest(t.tearsDown).passed !== 'pass'
-    if (tearsDownFailed) {
-      logger.verbose(`${t.id}: previous test failed or skipped`)
+    if (testRun.tearsDown && findTest(testRun.tearsDown).passed !== 'pass') {
       return 'previous test failed or skipped'
     }
 
-    if (isNotEmpty(options.exclude)) {
-      if (options.exclude.includes(t.id)) return `test id excluded`
-      if (options.exclude.some((excludeTag) => t.tags?.includes(excludeTag))) {
-        return `test excluded by tag`
-      }
+    const exclude = options.exclude ?? []
+    if (exclude.includes(testRun.id)) return 'test id excluded'
+    if (exclude.some((tag) => testRun.tags?.includes(tag))) return 'test excluded by tag'
+
+    const include = options.include ?? []
+    if (include.length > 0 && !include.some((tag) => tagOnTest(tag, testRun))) {
+      return 'test did not have an include tag'
     }
 
-    if (isNotEmpty(options.include)) {
-      if (!options.include.some((tag) => tagOnTest(tag, t))) return 'test did not have an include tag'
-    }
-
-    if (onlyArgUsed && !t.only) return 'another test is marked as only'
-    return false // don't skip
+    if (onlyIsUsed && !testRun.only) return 'another test is marked as only'
+    return undefined
   }
 
+  async function runTest(testRun: RunnableTest<Config>): Promise<void> {
+    const testStart = Date.now()
+    const reason = skipReason(testRun)
+    if (reason) {
+      testRun.skipReason = reason
+      finishTest(testRun, 'skip', 0)
+      return
+    }
+
+    includeStartMessage && logger.info(`Loop:${loop} ${testRun.id} started`)
+    if (options.dryRun) {
+      finishTest(testRun, 'pass', Date.now() - testStart)
+      return
+    }
+
+    const context: TestContext<Config> = {
+      outputs,
+      config,
+      observe(observation: Observation): void {
+        testRun.observations.push(observation)
+      },
+    }
+
+    try {
+      const output = await testRun.definition.run(context)
+      outputValues.set(testRun.id, output)
+      testRun.output = output
+      await testRun.definition.verify?.(context)
+      finishTest(testRun, 'pass', Date.now() - testStart)
+      includeStartMessage && logger.info(`Loop:${loop} ${testRun.id} completed ${testRun.duration}ms`)
+      if (testRun.waitAfter) await wait(testRun.waitAfter)
+    } catch (error) {
+      testRun.error = messageFromError(error) ?? 'unknown error'
+      finishTest(testRun, 'fail', Date.now() - testStart)
+      logger.warn(`Loop:${loop} ${testRun.id} failed`, error)
+    }
+  }
+
+  let done = false
   do {
     loop++
-    logger.verbose('Running test loop', loop)
-    const runTheseTests = testOutputs.filter(shouldRunTestThisLoop)
-    const promisesThisLoop = runTheseTests.map(runTest)
+    const testsThisLoop = tests.filter(shouldRunThisLoop)
+    await Promise.all(testsThisLoop.map(runTest))
 
-    await Promise.all(promisesThisLoop)
-
-    if (loop > MAX_LOOPS) {
-      throw new Error('Looped too many times')
-    }
-    if (allTestsComplete(testOutputs)) {
+    if (loop > MAX_LOOPS) throw new Error('Looped too many times')
+    if (tests.every((testRun) => testRun.complete)) {
       done = true
-    } else if (isEmpty(runTheseTests)) {
-      const testsLeft = testOutputs.filter((t) => !t.complete)
-      logger.level = 'verbose'
-      logger.verbose('tests left to run:', testsLeft.map(toTestId))
-      testsLeft.map(shouldRunTestThisLoop)
+    } else if (testsThisLoop.length === 0) {
       throw new Error('No tests ran this loop, possible circular dependency')
     } else {
-      await wait(500)
+      await wait(RESCAN_DELAY_MS)
     }
   } while (!done)
 
-  const duration = Date.now() - start
-
-  writeStateToFile(state, options.logDirectory)
-
   return {
-    result: fullTestResult(testOutputs.map(toPassFail)),
-    duration,
-    tests: testOutputs,
-    state,
+    result: fullTestResult(tests.map((testRun) => testRun.passed)),
+    duration: Date.now() - suiteStart,
+    tests: tests.map(({ definition: _definition, ...testRun }) => testRun),
     showSkipped: options.showSkipped,
   }
 }
 
-function toPassFail(test: { passed?: PassFail }): PassFail | undefined {
-  return test.passed
+function createOutputs(values: Map<TestId, unknown>): Outputs {
+  return Object.freeze({
+    get<Output = unknown>(id: TestId): Output | undefined {
+      return values.get(id) as Output | undefined
+    },
+    has(id: TestId): boolean {
+      return values.has(id)
+    },
+  })
 }
 
-const isFail = (x?: PassFail): boolean => x === 'fail'
-const isSkip = (x?: PassFail): boolean => x === 'skip' || x === undefined
+function deepFreeze<Value>(value: Value): DeepReadonly<Value> {
+  if (value === null || typeof value !== 'object') return value as DeepReadonly<Value>
+  for (const nestedValue of Object.values(value)) deepFreeze(nestedValue)
+  return Object.freeze(value) as DeepReadonly<Value>
+}
 
-function fullTestResult(tests: (PassFail | undefined)[]): PassFail {
-  if (tests.some(isFail)) return 'fail'
-  if (tests.every(isSkip)) return 'skip'
+function startTest<Config extends object>(definition: TestDefinition<Config, unknown>): RunnableTest<Config> {
+  const { run: _run, verify: _verify, ...metadata } = definition
+  return {
+    ...metadata,
+    observations: [],
+    complete: false,
+    definition,
+  }
+}
+
+function validateDefinitions<Config extends object>(definitions: TestDefinition<Config, unknown>[]): void {
+  const ids = new Set<TestId>()
+  for (const definition of definitions) {
+    if (ids.has(definition.id)) throw new Error(`Duplicate test id: ${definition.id}`)
+    ids.add(definition.id)
+  }
+
+  for (const definition of definitions) {
+    const referencedIds = [...(definition.dependsOn ?? []), ...(definition.tearsDown ? [definition.tearsDown] : [])]
+    for (const referencedId of referencedIds) {
+      if (!ids.has(referencedId)) throw new Error(`Test ${referencedId} not found`)
+    }
+  }
+}
+
+function tagOnTest(tag: string, testRun: TestRun): boolean {
+  return testRun.id === tag || testRun.tags?.includes(tag) === true
+}
+
+function fullTestResult(results: (PassFail | undefined)[]): PassFail {
+  if (results.some((result) => result === 'fail')) return 'fail'
+  if (results.every((result) => result === 'skip' || result === undefined)) return 'skip'
   return 'pass'
 }
 
-function tagOnTest(tag: string, test: TestDefinitionWithoutState): boolean {
-  if (test.id === tag) return true
-  return test.tags?.includes(tag) ?? false
-}
-
-function startTest<State>(test: TestDefinition<State>): TestRun<State> {
-  return { ...test, complete: false }
-}
-
-function allTestsComplete<State>(tests: TestRun<State>[]): boolean {
-  return tests.every((t) => t.complete)
-}
-
-function outputString<T>(t: TestRun<T>): string {
-  if (t.skip) return 'skipped'
-  if (!t.output) return ''
-  return `${t.output}`
-}
-
-function isNotComplete(test: TestRunWithoutState): boolean {
-  return !test.complete
-}
-
-function toTestId(test: WithTestId): string {
-  return test.id
-}
-
 function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }

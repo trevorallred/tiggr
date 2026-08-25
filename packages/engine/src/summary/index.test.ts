@@ -1,14 +1,10 @@
 import { type TestRunnerOutput, type TestRun } from '../types'
 import { printTestOutput } from './index'
 
-type SampleState = {}
-
-function stubTest(id: string, partial?: Partial<TestRun<SampleState>>): TestRun<SampleState> {
+function stubTest(id: string, partial?: Partial<TestRun>): TestRun {
   return {
     id,
-    evaluate: async () => {
-      return true
-    },
+    observations: [],
     loop: 1,
     complete: true,
     passed: 'pass',
@@ -19,14 +15,13 @@ function stubTest(id: string, partial?: Partial<TestRun<SampleState>>): TestRun<
 
 describe('printTestOutput', () => {
   describe('3 tests: pass, fail, skip', () => {
-    const input: TestRunnerOutput<SampleState> = {
+    const input: TestRunnerOutput = {
       result: 'pass',
       tests: [
         stubTest('test1', { duration: 100, output: 'output1', passed: 'pass' }),
         stubTest('test2', { duration: 100, output: 'output2', passed: 'fail' }),
         stubTest('test3', { duration: 200, output: 'output3', passed: 'skip' }),
       ],
-      state: {},
       duration: 100,
     }
     const output = printTestOutput(input)
@@ -49,10 +44,9 @@ describe('printTestOutput', () => {
     })
   })
   it('1 test with no duration', () => {
-    const input: TestRunnerOutput<SampleState> = {
+    const input: TestRunnerOutput = {
       result: 'pass',
       tests: [stubTest('test1', { duration: 100, output: 'output1', passed: 'pass' })],
-      state: {},
       duration: 0,
     }
     const output = printTestOutput(input)
@@ -61,13 +55,12 @@ describe('printTestOutput', () => {
     expect(output).not.toMatch('Duration')
   })
   it('2 tests with pass/skip', () => {
-    const input: TestRunnerOutput<SampleState> = {
+    const input: TestRunnerOutput = {
       result: 'pass',
       tests: [
         stubTest('test1', { duration: 100, output: 'output1', passed: 'pass' }),
         stubTest('test2', { duration: 100, output: 'output2', passed: 'skip' }),
       ],
-      state: {},
       duration: 100,
     }
     const output = printTestOutput(input)
