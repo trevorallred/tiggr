@@ -5,9 +5,9 @@ Tigger 2: an agent-era, dependency-aware integration-test execution engine — t
 
 This repo is a pnpm workspace:
 
-- `packages/engine/` — a standalone port of today's `packages/tigger` engine from the Terros sales
-  monorepo, with no dependency on any Terros-internal package. This is the known-good baseline the
-  Tigger 2 redesign will build on top of. See `packages/engine/README.md` for usage.
+- `packages/engine/` — the Tigger 2 DAG engine core, with explicit per-test outputs, structured
+  observations, and separate `run`/`verify` callbacks. It has no dependency on any Terros-internal
+  package. See `packages/engine/README.md` for usage.
 - `packages/runner/` (planned) — an AI-driven test-runner package that designs/selects/diagnoses
   tests and drives the engine. Not yet added.
 
@@ -19,5 +19,5 @@ pnpm run build
 pnpm run test
 ```
 
-This repo is freshly scaffolded and under active planning for the Tigger 2 redesign. See the
-backlog/report for the current build plan before contributing.
+See `docs/TIGGER2_PLAN.md` for the phased build plan and `docs/OPEN_DECISIONS.md` for decisions that
+gate later phases.
