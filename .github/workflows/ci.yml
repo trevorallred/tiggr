@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
+      - name: Lint with oxlint and source-size checks
         run: pnpm run lint
 
   build-and-test:

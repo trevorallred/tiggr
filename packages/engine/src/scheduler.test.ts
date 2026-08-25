@@ -82,7 +82,7 @@ it('propagates a failure forward as skips', async () => {
 })
 
 it('marks tests passed without calling run or verify in dry-run mode', async () => {
-  const verify = vi.fn()
+  const verify = vi.fn<() => void>()
   const result = await runTests([stubTest('a', { verify })], {
     config,
     dryRun: true,
