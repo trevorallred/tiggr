@@ -2,7 +2,6 @@ import {
   resource,
   test,
   type JsonValue,
-  type Observation,
   type SuiteDefinition,
   type TestContext,
 } from 'tiggr'
@@ -30,7 +29,7 @@ const project = resource<Config, Project, Project>({
     tags: ['project', 'smoke'],
     provenance: { origin: 'sample-app' },
     run: (context) => request<Project>(context, 'POST', '/projects', { name: 'Tiggr sample' }, 201),
-    verify: ({ observe }, output) => assertObserved(observe, 'a project id', output.id, output.id.length > 0),
+    verify: (context, output) => assertObserved(context, 'a project id', output.id, output.id.length > 0),
   }),
   destroy: test({
     id: 'archiveProject',
@@ -39,7 +38,7 @@ const project = resource<Config, Project, Project>({
       const created = requiredOutput<Project>(context, 'createProject')
       return request<Project>(context, 'POST', `/projects/${created.id}/archive`, undefined, 200)
     },
-    verify: ({ observe }, output) => assertObserved(observe, true, output.archived, output.archived),
+    verify: (context, output) => assertObserved(context, true, output.archived, output.archived),
   }),
 })
 
@@ -69,7 +68,9 @@ const definitions: SuiteDefinition<Config>[] = [
       const document = requiredOutput<Document>(context, 'createDocument')
       return request<Document>(context, 'POST', `/documents/${document.id}/process`, undefined, 202)
     },
-    verify: ({ observe }, output) => assertObserved(observe, 'processing', output.status, output.status === 'processing'),
+    verify: (context, output) => {
+      assertObserved(context, 'processing', output.status, output.status === 'processing')
+    },
   }),
   test<Config, Summary>({
     id: 'summarize',
@@ -132,14 +133,14 @@ const definitions: SuiteDefinition<Config>[] = [
         tags: tags.tags,
       }
     },
-    verify: ({ observe }, output) => {
+    verify: (context, output) => {
       const resultIds = output.primaryResults.map(({ id }) => id)
       const isolated = output.primaryResults.every(({ projectId }) => projectId === output.primaryProjectId)
         && resultIds.includes(output.primaryDocumentId)
         && !resultIds.includes(output.foreignDocumentId)
-      assertObserved(observe, `only documents from ${output.primaryProjectId}`, output.primaryResults, isolated)
-      assertObserved(observe, 'summary consumed at fan-in', output.summary, output.summary.includes('Honeycomb'))
-      assertObserved(observe, 'tags consumed at fan-in', output.tags, output.tags.includes('honeycomb'))
+      assertObserved(context, `only documents from ${output.primaryProjectId}`, output.primaryResults, isolated)
+      assertObserved(context, 'summary consumed at fan-in', output.summary, output.summary.includes('Honeycomb'))
+      assertObserved(context, 'tags consumed at fan-in', output.tags, output.tags.includes('honeycomb'))
       if (!isolated) throw new Error('Search returned a document from another project')
     },
   }),
@@ -162,18 +163,18 @@ async function waitForProcessing(context: TestContext<Config>, documentId: strin
 }
 
 async function request<Output>(
-  { config, observe }: TestContext<Config>,
+  context: TestContext<Config>,
   method: string,
   path: string,
   body: object | undefined,
   expectedStatus: number
 ): Promise<Output> {
-  const response = await fetch(`${config.baseUrl}${path}`, {
+  const response = await fetch(`${context.config.baseUrl}${path}`, {
     method,
     headers: body ? { 'content-type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   })
-  observe({ type: 'http', method, path, status: response.status })
+  context.observe({ type: 'http', method, path, status: response.status })
   const parsed = (await response.json()) as Output
   if (response.status !== expectedStatus) throw new Error(`${method} ${path} returned ${response.status}`)
   return parsed
@@ -186,12 +187,12 @@ function requiredOutput<Output>(context: TestContext<Config>, id: string): Outpu
 }
 
 function assertObserved(
-  observe: (observation: Observation) => void,
+  context: TestContext<Config>,
   expected: JsonValue,
   actual: JsonValue,
   passed: boolean
 ): void {
-  observe({ type: 'assertion', expected, actual, passed })
+  context.observe({ type: 'assertion', expected, actual, passed })
   if (!passed) throw new Error(`Assertion failed: expected ${JSON.stringify(expected)}`)
 }
 
