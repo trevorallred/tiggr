@@ -1,0 +1,21 @@
+{
+  "name": "@tigger/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "rm -rf build && rm -f tsconfig.tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.0"
+  }
+}
