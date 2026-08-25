@@ -13,8 +13,7 @@ function stubTest(id: string, partial?: Partial<TestRun>): TestRun {
   }
 }
 
-describe('printTestOutput', () => {
-  describe('3 tests: pass, fail, skip', () => {
+describe('printTestOutput with pass, fail, and skip results', () => {
     const input: TestRunnerOutput = {
       runId: 'run-1',
       startedAt: '2026-08-24T00:00:00.000Z',
@@ -46,8 +45,9 @@ describe('printTestOutput', () => {
     it('Duration and speedup', () => {
       expect(output).toMatch('Duration: 100ms, 75% speed up with Tiggr')
     })
-  })
-  it('1 test with no duration', () => {
+})
+
+it('prints one test with no duration', () => {
     const input: TestRunnerOutput = {
       runId: 'run-1',
       startedAt: '2026-08-24T00:00:00.000Z',
@@ -61,8 +61,9 @@ describe('printTestOutput', () => {
 
     expect(output).toMatch('Tests: \u001b[32m1 passed\u001b[0m, 1 total')
     expect(output).not.toMatch('Duration')
-  })
-  it('2 tests with pass/skip', () => {
+})
+
+it('prints two tests with pass/skip', () => {
     const input: TestRunnerOutput = {
       runId: 'run-1',
       startedAt: '2026-08-24T00:00:00.000Z',
@@ -82,5 +83,4 @@ describe('printTestOutput', () => {
     expect(output).toMatch('1 skipped')
     expect(output).toMatch('2 total')
     expect(output).toMatch('speed up')
-  })
 })

@@ -35,7 +35,8 @@ try {
   }
 
   const invariant = search?.observations.find(
-    (observation) => observation.type === 'assertion' && String(observation.expected).startsWith('only documents from')
+    (observation) => observation.type === 'assertion'
+      && JSON.stringify(observation.expected).startsWith('"only documents from')
   )
   if (!invariant || invariant.passed !== true) throw new Error('Search isolation invariant was not observed as passing')
 } finally {
