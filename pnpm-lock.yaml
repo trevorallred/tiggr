@@ -17,9 +17,6 @@ importers:
       oxlint-tsgolint:
         specifier: ^7.0.2001
         version: 7.0.2001
-      tsx:
-        specifier: 4.20.5
-        version: 4.20.5
       typescript:
         specifier: ^6.0.2
         version: 6.0.3
@@ -1117,6 +1114,7 @@ snapshots:
       '@esbuild/win32-arm64': 0.25.12
       '@esbuild/win32-ia32': 0.25.12
       '@esbuild/win32-x64': 0.25.12
+    optional: true
 
   estree-walker@3.0.3:
     dependencies:
@@ -1134,6 +1132,7 @@ snapshots:
   get-tsconfig@4.14.3:
     dependencies:
       resolve-pkg-maps: 1.0.0
+    optional: true
 
   lightningcss-android-arm64@1.33.0:
     optional: true
@@ -1236,7 +1235,8 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  resolve-pkg-maps@1.0.0: {}
+  resolve-pkg-maps@1.0.0:
+    optional: true
 
   rolldown@1.2.5:
     dependencies:
@@ -1284,6 +1284,7 @@ snapshots:
       get-tsconfig: 4.14.3
     optionalDependencies:
       fsevents: 2.3.3
+    optional: true
 
   typescript@6.0.3: {}
 
