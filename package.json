@@ -1,9 +1,9 @@
 {
-  "name": "tigger",
+  "name": "tiggr-workspace",
   "version": "0.0.0",
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "packageManager": "pnpm@10.9.0",
   "scripts": {

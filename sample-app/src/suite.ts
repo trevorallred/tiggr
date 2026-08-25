@@ -5,7 +5,7 @@ import {
   type Observation,
   type SuiteDefinition,
   type TestContext,
-} from '@tigger/engine'
+} from 'tiggr'
 
 type Config = { baseUrl: string }
 type Project = { id: string; name: string; archived: boolean }
@@ -29,7 +29,7 @@ const project = resource<Config, Project, Project>({
     intent: 'Create the singleton project used by the sample suite',
     tags: ['project', 'smoke'],
     provenance: { origin: 'sample-app' },
-    run: (context) => request<Project>(context, 'POST', '/projects', { name: 'Tigger sample' }, 201),
+    run: (context) => request<Project>(context, 'POST', '/projects', { name: 'Tiggr sample' }, 201),
     verify: ({ observe }, output) => assertObserved(observe, 'a project id', output.id, output.id.length > 0),
   }),
   destroy: test({
@@ -55,7 +55,7 @@ const definitions: SuiteDefinition<Config>[] = [
         context,
         'POST',
         `/projects/${created.id}/documents`,
-        { content: 'Honeycomb search belongs only to its Tigger project.' },
+        { content: 'Honeycomb search belongs only to its Tiggr project.' },
         201
       )
     },
@@ -197,6 +197,6 @@ function assertObserved(
 
 export default {
   definitions,
-  config: { baseUrl: process.env.TIGGER_BASE_URL ?? 'http://127.0.0.1:3000' },
+  config: { baseUrl: process.env.TIGGR_BASE_URL ?? 'http://127.0.0.1:3000' },
   metadata: { suite: 'sample-app' },
 }

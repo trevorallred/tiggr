@@ -358,7 +358,7 @@ describe('runTests', () => {
     expect(result.runId).toMatch(/^[0-9a-f-]{36}$/)
     expect(result.startedAt >= before).toBe(true)
     expect(result.completedAt <= after).toBe(true)
-    expect(result.engineVersion).toBe('0.0.0')
+    expect(result.engineVersion).toBe('2.0.0')
     expect(result.metadata).toEqual({ commit: 'abc123', trigger: { kind: 'manual' } })
     expect(() => JSON.stringify(result)).not.toThrow()
   })

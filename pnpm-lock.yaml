@@ -20,7 +20,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@tigger/engine':
+      tiggr:
         specifier: workspace:*
         version: link:../engine
     devDependencies:
@@ -48,16 +48,16 @@ importers:
 
   sample-app:
     dependencies:
-      '@tigger/engine':
+      tiggr:
         specifier: workspace:*
         version: link:../packages/engine
     devDependencies:
+      '@tiggr/cli':
+        specifier: workspace:*
+        version: link:../packages/cli
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.3
-      tigger:
-        specifier: workspace:*
-        version: link:../packages/cli
       typescript:
         specifier: ^6.0.2
         version: 6.0.3

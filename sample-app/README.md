@@ -1,4 +1,4 @@
-# Tigger sample app
+# Tiggr sample app
 
 This private workspace package is a real localhost HTTP target backed only by in-memory `Map`s. Its
 suite executes this graph:
@@ -20,9 +20,9 @@ second project to assert that results never cross project boundaries.
 After building the workspace, run the full app/CLI boundary with:
 
 ```sh
-pnpm --filter @tigger/sample-app dogfood
+pnpm --filter @tiggr/sample-app dogfood
 ```
 
-The dogfood runner starts the server on an ephemeral localhost port, invokes the built Tigger CLI
+The dogfood runner starts the server on an ephemeral localhost port, invokes the built Tiggr CLI
 entrypoint with `run`, requires exit code 0, and inspects the JSON artifact for the full graph,
 multi-attempt polling, and a passing isolation observation.

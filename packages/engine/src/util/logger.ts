@@ -1,7 +1,5 @@
-// Minimal standalone stand-in for the `Logger` class tigger used from `@terros/common` in the
-// Terros sales monorepo. That version also handles AWS Lambda structured JSON logging, which this
-// standalone engine has no use for — this keeps only the leveled, prefixed console logging tigger
-// itself depends on.
+// Minimal standalone logger. Tiggr only needs leveled, prefixed console logging, so this avoids
+// coupling the engine to a proprietary logging package or deployment-specific formatting.
 const levels = {
   error: 0,
   warn: 1,

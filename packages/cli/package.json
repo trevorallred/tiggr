@@ -1,10 +1,10 @@
 {
-  "name": "tigger",
+  "name": "@tiggr/cli",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "bin": {
-    "tigger": "./build/cli.js"
+    "tiggr": "./build/cli.js"
   },
   "exports": {
     ".": {
@@ -19,7 +19,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@tigger/engine": "workspace:*"
+    "tiggr": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

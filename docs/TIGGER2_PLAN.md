@@ -1,30 +1,19 @@
-# Tigger 2 — Plan
+# Tiggr 2 — Plan
 
-> **Preamble.** This repo is a personal, independent continuation of Tigger 2 (an agent-era
-> successor to `packages/tigger` in the Terros sales monorepo). It previously lived at
-> `terros-inc/tigger`; after the Terros team decided not to open-source it there, the captain (who
-> has that authority) mirrored the full repo history to this personal account to continue
-> development independently. `packages/engine/` is the ported, standalone Tigger 1 baseline; CI is
-> green; the sample app and every Tigger-2-specific primitive described below are still unbuilt.
+> **Preamble.** This public repository is the standalone continuation of Tiggr 2, an agent-era
+> successor to an earlier private integration-test engine. `packages/engine/` began as the ported
+> Tiggr 1 baseline; CI is green, and Phase 1 is now implemented.
 >
-> This plan was written by a scout/planning pass before the move; it hasn't been revisited since,
-> so treat "current state" mentions calibrated to this repo's contents as more authoritative than
-> any repo name it references (e.g. it may still say `terros-inc/tigger` in places).
->
-> See also `docs/OPEN_DECISIONS.md` for four captain-only decisions that gate Phase 2 and Phase 3
-> scope below — do not assume that scope until those are answered.
+> See also `docs/OPEN_DECISIONS.md` for the captain's decision record. All four questions from the
+> original planning pass are now resolved.
 
 ---
 
-# Tigger 2 — Build Plan
+# Tiggr 2 — Build Plan
 
-**Scope note:** this plan was produced by a scout/planning pass before this repo moved from
-`terros-inc/tigger` to its current personal home. Its content is unchanged; only its home has moved.
-
-I read the full prior investigation of Tigger 1 (the original `packages/tigger` in the Terros sales
-monorepo) before forming any opinion, verified against that engine's own passing test suite
-(21/21). All `file:line` references to "Tigger 1" below refer to that original codebase, not this
-repo's ported `packages/engine/`.
+**Scope note:** this plan was produced by a scout/planning pass against the earlier private
+implementation. Its assessment was verified against that engine's passing test suite (21/21).
+References to "Tiggr 1" below mean that predecessor, not this repository's `packages/engine/`.
 
 ---
 
@@ -37,16 +26,16 @@ framing (migration cost) doesn't actually apply yet. Point by point:
 ### Keep, essentially as proposed
 
 - **The DAG stays the core primitive.** `dependsOn`, `tearsDown`, `tags`, parallel-per-loop
-  execution, forward failure-propagation, `dryRun`. Tigger 1's scheduler (a `do/while` polling loop
+  execution, forward failure-propagation, `dryRun`. Tiggr 1's scheduler (a `do/while` polling loop
   with a 500ms re-scan and a `MAX_LOOPS=100` circuit breaker) is proven and simple. **I would not
   redesign the scheduler.** An event-driven scheduler would be more "elegant" but the polling loop
-  is easy to reason about, easy to test, and was never the part of Tigger 1 that caused problems.
+  is easy to reason about, easy to test, and was never the part of Tiggr 1 that caused problems.
   Rewrite the DAG engine cleanly, but keep its shape.
 - **Model-independent execution infrastructure, three-layer separation, no LLM inside the engine.**
   Full agreement, no notes. This is the load-bearing design principle and it costs nothing to keep
-  — Tigger just needs to expose a clean CLI/JSON contract, not host any AI itself.
+  — Tiggr just needs to expose a clean CLI/JSON contract, not host any AI itself.
 - **Structured observations instead of pass/fail-plus-a-string.** This is the single highest-value
-  idea in the whole document. Tigger 1's `output: string` is genuinely weak for an agent to consume;
+  idea in the whole document. Tiggr 1's `output: string` is genuinely weak for an agent to consume;
   a typed observation list is a small API addition (one `ctx.observe(...)` call) with an outsized
   payoff for anything downstream that has to reason about *why* a test failed.
 - **Explicit resource lifecycle (`resource({ create, destroy })` + `uses: [...]`).** Real
@@ -71,12 +60,13 @@ framing (migration cost) doesn't actually apply yet. Point by point:
   into two costs almost nothing (it's a function signature, not an architecture). The ceremony
   that *is* questionable is the proposed **authority-enforcement machinery** on top of it (locked
   invariants, reviewable verify blocks, freely-editable run blocks, a healing-permission matrix).
-  That enforcement has no user yet: nothing in this repo runs an autonomous agent against Tigger
+  That enforcement has no user yet: nothing in this repo runs an autonomous agent against Tiggr
   today, so building a policy engine now would be speculative. My recommendation: add `intent` and
   `invariants` as plain metadata fields from day one (they're just strings/string arrays, and
   they're valuable as human documentation even with zero enforcement), but don't build enforcement
-  tooling until there's an actual agent workflow to protect against. This is exactly the shape of
-  decision flagged as an open question below (see "test-agent-driver" in `OPEN_DECISIONS.md`).
+  tooling until there's an actual agent workflow to protect against. The captain has since
+  confirmed that AI-driven test-authoring and agent features are planned; see
+  `OPEN_DECISIONS.md`.
 - **The three-way test taxonomy (hard invariants / expected behaviors / explorations).** I'd
   collapse "hard invariants" and "expected behaviors" into one `test()` construct with an optional
   `policy: 'protected' | 'flexible'` field (or similar), rather than two enforced categories —
@@ -86,8 +76,8 @@ framing (migration cost) doesn't actually apply yet. Point by point:
 - **Change-aware test selection (`covers`, `--changed`).** The *metadata* (`covers: [...]`,
   effectively a richer replacement for today's flat `tags: string[]`) is cheap and worth adding
   early. The *semantic* mapping from "these files changed" to "these concepts are affected" is
-  explicitly the test agent's job per the proposal's own three-layer split, not Tigger's — so
-  Tigger's job is just a dumb `--changed <files...>` flag doing set-intersection against `covers`,
+  explicitly the test agent's job per the proposal's own three-layer split, not Tiggr's — so
+  Tiggr's job is just a dumb `--changed <files...>` flag doing set-intersection against `covers`,
   which is a small, deferrable feature, not core execution.
 - **Run-scoped, agent-authored temporary explorations.** Nothing new is actually needed here: since
   tests are just data passed into a `run()` call, a caller can already assemble ad-hoc
@@ -98,13 +88,14 @@ framing (migration cost) doesn't actually apply yet. Point by point:
 ### Push back on / defer
 
 - **"Eliminate shared mutable state" — worth doing, but not because of migration cost.** The
-  original brief for this plan asked whether this is worth the migration cost given Tigger 1's
-  entire consumer suite (`packages/integration` in the Terros sales monorepo, ~50 domains) relies
-  on shared mutable `state`. My honest read: **that framing doesn't apply here.** Tigger 2 starts
-  with zero consumers other than its own sample app — `packages/integration` keeps using Tigger 1
+  original brief for this plan asked whether this is worth the migration cost given Tiggr 1's
+  entire private consumer suite (~50 domains) relies
+  on shared mutable `state`. My honest read: **that framing doesn't apply here.** Tiggr 2 starts
+  with zero consumers other than its own sample app — `packages/integration` keeps using Tiggr 1
   unless and until the captain separately decides to port it, which is its own open question (see
   `migration-compat` in `OPEN_DECISIONS.md`). So there is no existing-suite migration cost to weigh
-  *right now*. Judged purely on its own merits for a new engine, explicit `outputs` (a `Map`-like
+  *right now*. The captain has since chosen a clean break for Tiggr 2. Judged purely on its own
+  merits for a new engine, explicit `outputs` (a `Map`-like
   store of `{ id -> whatever that test's run() returned }`, read via `ctx.outputs.get(id)`) is
   worth it: it's what makes "data provenance through the graph" (a real, concrete agent-debugging
   win — "which test produced this undefined value") possible at all, and it costs little for code
@@ -113,7 +104,7 @@ framing (migration cost) doesn't actually apply yet. Point by point:
   loosely-typed runtime map with a developer-asserted generic
   (`ctx.outputs.get<ProjectOutput>('create-project')`) is enough for v0.
   - One caveat: I'd keep a small, explicitly *read-only* `ctx.config` object seeded once per run
-    (base URL, run namespace, etc. — the useful part of Tigger 1's `initial: State`), just not a
+    (base URL, run namespace, etc. — the useful part of Tiggr 1's `initial: State`), just not a
     *mutable* one. This isn't a re-introduction of shared mutable state — tests can read suite-wide
     config, but the only way to hand data to a downstream test is through that test's own declared
     `outputs`.
@@ -121,62 +112,59 @@ framing (migration cost) doesn't actually apply yet. Point by point:
   This mechanism's real job in `packages/integration` was incidental, not load-bearing — the actual
   cross-run isolation mechanism was `loginGroup` (a config value namespacing throwaway
   company/users), and CI always started from an empty `output/` anyway since it was gitignored.
-  What Tigger 2 actually wants instead is a **history of what happened**, not a resumable mutable
+  What Tiggr 2 actually wants instead is a **history of what happened**, not a resumable mutable
   blob — i.e., persist each run's full structured JSON under a run-id
-  (`.tigger/runs/<run-id>.json`), which is a fundamentally different and more useful artifact than
-  the old `state.json`. This directly enables `tigger inspect <run-id>` from the CLI sketch below.
+  (`.tiggr/runs/<run-id>.json`), which is a fundamentally different and more useful artifact than
+  the old `state.json`. This directly enables `tiggr inspect <run-id>` from the CLI sketch below.
 - **Triage-before-healing, healing-permission matrices, failure-category distributions.** Good
   *philosophy*, but this is agent operating procedure, not engine mechanics, and building it now
-  would be building tooling for an agent that doesn't exist yet. Tigger's actual job here is small:
+  would be building tooling for an agent that doesn't exist yet. Tiggr's actual job here is small:
   store the metadata that lets an external agent's triage logic make these calls
   (`policy`/`authority` fields), and maybe later add a lightweight CI lint that flags a diff
-  touching a `policy: 'protected'` field. No classifier, no automation, inside Tigger itself.
+  touching a `policy: 'protected'` field. No classifier, no automation, inside Tiggr itself.
 - **AXI-style system-under-test inspection commands.** The proposal itself places this in the
-  "AXI / system-under-test tools" layer, explicitly outside Tigger — agreed, would not build this
+  "AXI / system-under-test tools" layer, explicitly outside Tiggr — agreed, would not build this
   into the engine. The sample app can optionally expose one illustrative inspection endpoint (see
   §3) just to make the three-layer separation concrete, but it's not a serious tool and shouldn't
   be treated as one.
 - **Mutation testing.** Interesting long-term signal, but it requires safely mutating and
   reverting implementation code around a full test run — that's a separate tool built *on top of*
-  Tigger, not a Tigger feature, and there's no implementation here to mutate yet (the sample app is
+  Tiggr, not a Tiggr feature, and there's no implementation here to mutate yet (the sample app is
   a toy). Not scoped into any phase; it's a "someday, if the rest proves out" idea.
-- **Any internal Terros dependency (`@terros/common`, etc.).** Tigger 1 depended on
-  `@terros/common` for `Logger`, `isEmpty`, `isNotEmpty`, `messageFromError`. Tigger 2, as a
-  standalone repo with no access to the Terros sales monorepo, **must not** depend on any
-  `@terros/*` package — not because of open-sourcing plans (undecided, see `OPEN_DECISIONS.md`),
-  but because this repo literally cannot resolve that dependency at all. This is cheap insurance
-  regardless of how the open-source question resolves. (This part is already done: `packages/engine/`
-  reimplements the handful of needed utilities locally under `packages/engine/src/util/`.)
+- **Any internal proprietary dependency.** The predecessor depended on private utility packages
+  for logging and error normalization. Tiggr 2 is standalone and open source, so it must not
+  depend on packages that public consumers cannot resolve. This is already done:
+  `packages/engine/` implements the handful of needed utilities under
+  `packages/engine/src/util/`.
 
 ---
 
 ## 2. Phased build plan
 
-Scope and sequencing, not calendar time. None of this is large in absolute terms (Tigger 1's entire
+Scope and sequencing, not calendar time. None of this is large in absolute terms (Tiggr 1's entire
 engine was ~264 lines).
 
 ### Phase 0 — Repo scaffold (no features yet) — **DONE**
 
-- Layout: engine at the repo root's `packages/engine/` (not nested further — `packages/tigger`
-  nesting made sense in the old monorepo where tigger was one of dozens of packages; inside a repo
-  that already IS tigger, deeper nesting is redundant), plus a planned sibling workspace package,
+- Layout: engine at `packages/engine/` (deeper nesting is redundant in a dedicated repository),
+  plus a planned sibling workspace package,
   `sample-app/` (`private: true`, not yet created), via `pnpm-workspace.yaml`.
-- Toolchain: pnpm, TypeScript, vitest, Node's built-in `node:util.parseArgs` for CLI args (Tigger 1
+- Toolchain: pnpm, TypeScript, vitest, Node's built-in `node:util.parseArgs` for CLI args (Tiggr 1
   already used this, no new dependency needed).
 - CI: a GitHub Actions workflow that installs, builds, typechecks, and runs the engine's unit tests
   on every PR — **live and green.**
 - This phase's deliverable (an installable, structured repo with the ported baseline engine) is
-  done; Tigger-2-specific primitives below are not yet started.
+  done; Tiggr-2-specific primitives below are not yet started.
 
-### Phase 1 — v0 / MVP: core engine + first agent-native primitives + sample app + dogfood CI — **NOT STARTED**
+### Phase 1 — v0 / MVP: core engine + first agent-native primitives + sample app + dogfood CI — **DONE**
 
-This is the meaty phase — it's where Tigger 2 actually becomes "Tigger 2" rather than "Tigger 1
-copied into a new repo." Deliverables:
+This phase is where Tiggr 2 became "Tiggr 2" rather than "Tiggr 1 copied into a new repo."
+Delivered:
 
 - **DAG engine, rewritten clean** (not copy-pasted): `dependsOn`, `tearsDown` (still available as
   an escape hatch under `resource()`, see below), `tags`/`covers`, per-loop parallel execution via
-  the same `do/while` polling scheduler shape as Tigger 1, circular-dependency detection, `dryRun`,
-  forward skip-propagation on failure. No behavior regression versus Tigger 1's mechanics — same
+  the same `do/while` polling scheduler shape as Tiggr 1, circular-dependency detection, `dryRun`,
+  forward skip-propagation on failure. No behavior regression versus Tiggr 1's mechanics — same
   guarantees, new API surface.
 - **`test({ id, intent?, invariants?, dependsOn?, uses?, run, verify? })`**: `run` replaces
   `evaluate`; `verify` is a genuinely separate, optional function (defaults to "no additional
@@ -185,7 +173,7 @@ copied into a new repo." Deliverables:
 - **Explicit outputs, no shared mutable state object**: `run`/`verify` receive a context
   `{ outputs, config, observe }`; whatever `run` returns becomes that test's own output, retrieved
   downstream via `outputs.get(id)`. `config` is the read-only, suite-wide seed value (successor to
-  the useful part of Tigger 1's `initial`).
+  the useful part of Tiggr 1's `initial`).
 - **Structured observations**: `ctx.observe({...})` during `run`/`verify`, producing a typed list
   (e.g. `{type:'http', method, path, status}`, `{type:'event', name}`, `{type:'poll', attempts,
   settled}`, `{type:'assertion', expected, actual, passed}`) attached to that test's run record —
@@ -194,13 +182,13 @@ copied into a new repo." Deliverables:
   `tearsDown` internally, singleton resources only (one creator, one destroyer, N consumers) — I'd
   explicitly defer multi-instance/parameterized resources (e.g. "three separate projects in one
   run") to a later phase; singleton coverage is exactly what the sample app in §3 needs, and
-  Tigger 1's own teardown-ordering logic was already its trickiest, most bug-prone-feeling code —
+  Tiggr 1's own teardown-ordering logic was already its trickiest, most bug-prone-feeling code —
   worth getting solid unit-test coverage on this before generalizing it further.
-- **JSON-first output**: `runTests()` (or its Tigger-2-renamed equivalent) returns one structured
+- **JSON-first output**: `runTests()` (or its Tiggr-2-renamed equivalent) returns one structured
   object; the CLI defaults to emitting that as JSON, with a human-pretty renderer built as a
   separate formatter on top of it rather than the source of truth.
-- **CLI v0**: `tigger run [ids...]`, `--dry-run`, `--include`, `--exclude`, `--json` (or JSON
-  default plus a `--pretty` flag). Drop `--runInBand` (already a documented no-op in Tigger 1)
+- **CLI v0**: `tiggr run [ids...]`, `--dry-run`, `--include`, `--exclude`, `--json` (or JSON
+  default plus a `--pretty` flag). Drop `--runInBand` (already a documented no-op in Tiggr 1)
   rather than reintroduce dead surface area.
 - **Sample app** (see §3 for full design): a small, in-memory, HTTP-driven toy app living at
   `sample-app/`, standing up a `createProject -> createDocument -> processDocument ->
@@ -208,30 +196,30 @@ copied into a new repo." Deliverables:
   primitive above (fan-out/fan-in DAG, resource lifecycle, structured observations including a
   genuine polling/eventual-consistency case, at least one real invariant).
 - **Dogfood CI**: the same PR that lands this engine also lands a CI job that boots the sample app
-  on localhost and runs `tigger run` against it end-to-end, asserting exit code 0 — proving the
+  on localhost and runs `tiggr run` against it end-to-end, asserting exit code 0 — proving the
   new engine against a realistic target in the same PR that changes it.
-- **Test provenance metadata** (`provenance?: { origin, issueLink, createdBy, createdAt,
+- **Test provenance metadata** (`provenance?: { origin, reference, createdBy, createdAt,
   reasoning }`) and `intent`/`invariants` as plain optional metadata fields — no enforcement yet,
   just present and documented.
 
-**Explicitly out of Phase 1**: `explore()`, run-history persistence/`tigger inspect`, any
+**Explicitly out of Phase 1**: `explore()`, run-history persistence/`tiggr inspect`, any
 policy-enforcement tooling, `--changed`, multi-instance resources, mutation testing.
 
-### Phase 2 — Explorations, run history, lightweight policy tooling — **NOT STARTED, gated on open decisions**
+### Phase 2 — Explorations, run history, lightweight policy tooling — **NOT STARTED**
 
 - **`explore({ id, question, dependsOn?, uses?, run })`**: a second top-level construct alongside
   `test()`. No `verify` requirement — it produces a `Finding` (freeform structured record: what
   was tried, what was observed, whether it looks surprising) instead of pass/fail/skip. CLI:
-  `tigger run --explore`. A finding can be manually promoted into a permanent `test()` by a human
-  or agent copying it into the checked-in suite — Tigger doesn't need to automate that promotion
+  `tiggr run --explore`. A finding can be manually promoted into a permanent `test()` by a human
+  or agent copying it into the checked-in suite — Tiggr doesn't need to automate that promotion
   step itself.
 - **Run-history persistence**: every invocation gets a run-id; full structured JSON persists to
-  `.tigger/runs/<run-id>.json` (gitignored, same spirit as Tigger 1's `output/` but now an
-  immutable per-run record instead of a mutable resumable blob). `tigger inspect <run-id>` and
-  `tigger output <run-id> --json` read that file back — no custom query language needed for v0,
+  `.tiggr/runs/<run-id>.json` (gitignored, same spirit as Tiggr 1's `output/` but now an
+  immutable per-run record instead of a mutable resumable blob). `tiggr inspect <run-id>` and
+  `tiggr output <run-id> --json` read that file back — no custom query language needed for v0,
   plain JSON that pipes cleanly into `jq` is enough.
 - **`covers` metadata + naive `--changed`**: rename/broaden `tags` into `covers: string[]`;
-  `tigger run --changed <file...>` does plain set-intersection against `covers` — explicitly *not*
+  `tiggr run --changed <file...>` does plain set-intersection against `covers` — explicitly *not*
   a semantic mapping (that stays the test agent's job).
 - **Lightweight policy metadata + CI lint**: `policy: 'protected' | 'flexible'` on a test/verify
   block, `authority: 'human' | 'ai'` on an invariant. A CI script flags a diff that touches a
@@ -239,32 +227,30 @@ policy-enforcement tooling, `--changed`, multi-instance resources, mutation test
   "triage before healing" tooling, deliberately scoped as a git-diff-aware lint, not a classifier.
 - **Illustrative inspection surface in the sample app**: one small `/admin/inspect/*` endpoint (or
   a `sample-app inspect <kind> <id>` script) purely to make the three-layer separation (test agent
-  / Tigger / system-under-test tools) concrete and demonstrable, not a serious AXI-equivalent tool.
+  / Tiggr / system-under-test tools) concrete and demonstrable, not a serious AXI-equivalent tool.
 
-**This phase's scope is directly affected by `test-agent-driver` in `OPEN_DECISIONS.md`** — the
-policy/lint tooling only pays off once something autonomously drives Tigger.
+The captain has confirmed that an AI-driven test-authoring/agent workflow is planned, so the
+policy/lint tooling has an intended downstream consumer.
 
 ### Phase 3 — Speculative / revisit-if-it-proves-out (not committed scope)
 
 - Multi-instance/parameterized resources.
 - Deeper `--changed` semantics (an actual concept graph, beyond string-set intersection).
 - Mutation testing as a quality signal.
-- Open-source publish prep (LICENSE, docs site, public visibility) — explicitly gated on
-  `open-source-timeline` in `OPEN_DECISIONS.md`.
-- A compatibility/migration path for `packages/integration` (the Terros sales monorepo's real
-  integration suite) — explicitly gated on `migration-compat` in `OPEN_DECISIONS.md`. Not designed
-  against speculatively before that answer exists, since "explicit outputs vs. shared mutable
-  state" and "what compatibility even means" are downstream of that decision.
+- Additional open-source release work beyond the npm-ready engine package (for example, a docs
+  site), if usage warrants it. The repository is already public and MIT-licensed.
+- No compatibility or migration tooling for `packages/integration`: the captain chose a clean
+  major-version break from Tiggr 1.
 
 ---
 
-## 3. Sample app recommendation — **NOT YET BUILT**
+## 3. Sample app — **IMPLEMENTED**
 
 **Location**: `sample-app/` at repo root (flat, not nested under `apps/`) — a private pnpm
-workspace member alongside the root `tigger` package. Two packages total doesn't need an `apps/`
+workspace member alongside the private workspace root. Two packages total doesn't need an `apps/`
 convention; keep the layout obvious.
 
-**Domain model** — deliberately generic, non-Terros terminology so it reads as an honest
+**Domain model** — deliberately generic terminology so it reads as an honest
 green-field toy:
 
 ```
@@ -278,86 +264,81 @@ createProject
 ```
 
 This shape exercises every primitive from §2 concretely:
-- **DAG with real fan-out and fan-in** (not just a linear chain like Tigger 1's worked
+- **DAG with real fan-out and fan-in** (not just a linear chain like Tiggr 1's worked
   `workflow.ts` example, which was really a chain, not a DAG) — `processDocument` produces two
   independent outputs consumed by one downstream test.
 - **Resource lifecycle**: `project` is a `resource()` with `create`/`destroy`; `createDocument`,
   `processDocument`, `search` all declare `uses: ['project']`; `archiveProject` only becomes
   eligible once nothing else still needs the project alive — directly exercising the
-  teardown-ordering logic carried forward from Tigger 1.
+  teardown-ordering logic carried forward from Tiggr 1.
 - **Structured observations with genuine eventual consistency**: `processDocument` returns
   immediately and does its work on a delay, so the test that depends on `summarize`/`tag` has to
   poll — producing real `{type:'poll', attempts, settled}` observations, not a contrived example.
 - **At least one real invariant**: "a project's documents are never returned by another project's
   `search`" — a genuine isolation invariant in the same spirit as real user-data isolation checks,
   without any real user data, credentials, or product logic involved.
-- **At least one exploration**: "given a document containing unusual characters (emoji, very long
-  text, empty string), try `search` variations and report anything surprising" — no fixed
-  assertion, a `Finding` record.
+- A future Phase 2 exploration can add unusual-character and empty-input search probes without
+  changing the Phase 1 dogfood suite.
 
 **Tech stack**:
-- **HTTP layer**: Express (or plain `node:http`) — this needs to be a real HTTP API, not
+- **HTTP layer**: plain `node:http` — this is a real HTTP API, not
   in-process function calls, because the `{type:'http', method, path, status}` observation shape
   only means something if there's an actual request/response boundary to observe. Express
-  specifically for speed of standing this up with minimal boilerplate.
+  a direct in-process test harness.
 - **Storage**: pure in-memory (`Map`s in the process), no SQLite/Postgres/Docker. This keeps "runs
   entirely on localhost" trivial — nothing to install, nothing to migrate, resets by restarting
   the process. It's an honest simplification: the sample app doesn't pretend to have real
   persistence, because that's not what it's testing.
 - **Async processing**: an in-process `setTimeout`-based fake job runner for `processDocument`,
   not a real queue — genuine eventual-consistency behavior with zero infrastructure.
-- **No isolation-namespace concept needed** (unlike Tigger 1's `loginGroup`): since the sample app
+- **No isolation-namespace concept needed** (unlike Tiggr 1's `loginGroup`): since the sample app
   is a fresh localhost process per CI run with no shared live stage to collide on, there's no need
   to replicate that namespacing trick at all — this is one respect in which local dogfooding is
-  strictly simpler than the real Terros suite, worth calling out explicitly rather than
+  strictly simpler than the predecessor suite, worth calling out explicitly rather than
   over-building.
 
-**Open-source exclusion**: recommendation is **don't exclude it** if this is ever open-sourced —
+**Open-source exclusion**: **don't exclude it** from the open-source repository —
 it's a genuinely useful onboarding/example artifact (the same role example apps play for
-Playwright, Cypress, Prisma, etc.), contains zero Terros branding, data, or credentials by
+Playwright, Cypress, Prisma, etc.), contains no proprietary branding, data, or credentials by
 construction, and hiding a general-purpose toy app would cost more (an extra publish-filtering
 step) than it saves. The one concrete mechanical requirement, not a publishing *exclusion* so much
-as correctness: `sample-app/package.json` must be `"private": true` and never listed as a
-dependency of the root `tigger` package, so a `pnpm publish` of the root package can never
-accidentally pull it into the published tarball.
+as correctness: `sample-app/package.json` must be `"private": true`. Only `packages/engine/` is
+published as `tiggr`; the private workspace root and sample app must never enter its tarball.
 
 ---
 
-## 4. Open questions for the captain
+## 4. Captain decisions
 
-See `docs/OPEN_DECISIONS.md` for the full text of all four — this section just names them:
+All four captain-only questions are resolved. See `docs/OPEN_DECISIONS.md` for the direct answers
+and publishing-name history:
 
-1. **Migration path for `packages/integration`** (the Terros sales monorepo's real integration
-   suite currently running on Tigger 1).
-2. **Open-source timeline and license.**
-3. **Is a real test-agent driver actually planned soon?**
-4. **Public package/npm identity, if ever published.**
+1. **Migration:** clean break at 2.0.0; no Tiggr 1 compatibility shim or migration tooling.
+2. **Open source:** yes, under the MIT License.
+3. **AI features:** yes, planned.
+4. **Public identity:** publish the engine as `tiggr` from the public `trevorallred/tiggr` repo.
 
-None of these block Phase 1 (the engine core + sample app) — only Phase 2/3 scope depends on them.
+These decisions no longer block later phases.
 
 ---
 
-## 5. Suggested first concrete task
+## 5. Completed initial implementation sequence
 
-The first PR should be scoped to just the riskiest architectural bet, proven in isolation, before
-anything is built on top of it:
+The first implementation PR was scoped to the riskiest architectural bet before anything was
+built on top of it:
 
-> **Build the Tigger 2 engine core** — the rewritten DAG scheduler (`dependsOn`/`tearsDown`/`tags`/
-> parallel-per-loop/circular-detection/`dryRun`, no `@terros/common`-style dependency — already
+> **Build the Tiggr 2 engine core** — the rewritten DAG scheduler (`dependsOn`/`tearsDown`/`tags`/
+> parallel-per-loop/circular-detection/`dryRun`, no internal proprietary dependency — already
 > true here), the `test({ run, verify? })` API replacing `evaluate`, explicit `outputs` replacing
 > shared mutable state, and structured `observe()` observations. Ship it with its own vitest
-> unit-test suite proving parity with Tigger 1's proven mechanics (dependency ordering, teardown
+> unit-test suite proving parity with Tiggr 1's proven mechanics (dependency ordering, teardown
 > ordering, skip-on-failure propagation, `dryRun`, circular-dependency detection, `include`/
 > `exclude` filtering) plus new tests for `outputs` provenance and observation capture.
 >
-> **Explicitly out of scope for this first task**: `resource()`, the sample app, the CLI, and any
-> exploration/policy/run-history features. The next task builds `resource()` and the sample app
-> against a working, unit-tested core; this first task's only job is to prove the core
-> architecture (explicit outputs + observations + run/verify) actually holds together before
-> anything depends on it.
+> **Explicitly out of scope for that first task**: `resource()`, the sample app, the CLI, and any
+> exploration/policy/run-history features. A follow-up added `resource()`, the sample app, the CLI,
+> and dogfood CI against the working, unit-tested core.
 >
-> This is genuinely the next unstarted piece of work in this repo as of the plan's writing — Phase
-> 0 (scaffold + ported baseline + CI) is done; this is the first slice of Phase 1.
+> Together those two implementation slices completed Phase 1.
 
 ---
 
@@ -365,12 +346,12 @@ anything is built on top of it:
 
 The proposal's direction is sound and most of it is worth implementing. The narrower disagreements:
 don't build authority-enforcement/triage tooling before an agent exists to need it, don't chase
-full static typing across the outputs graph, don't carry forward Tigger 1's cross-run `state.json`
+full static typing across the outputs graph, don't carry forward Tiggr 1's cross-run `state.json`
 persistence (replace it with immutable per-run history instead), and don't treat "eliminate shared
-mutable state" as a migration-cost question — it isn't one, since Tigger 2 has no existing
-consumers to migrate. The phased plan above (Phase 0 done, Phase 1 next/MVP with dogfood CI against
-an in-repo sample app, Phase 2 explorations/history/lightweight policy gated on open decisions,
+mutable state" as a migration-cost question — it isn't one, since Tiggr 2 has no existing
+consumers to migrate. The phased plan above (Phase 0 and Phase 1 done, including dogfood CI against
+an in-repo sample app; Phase 2 explorations/history/lightweight policy;
 Phase 3 speculative) delivers a working, meaningfully "agent-era" engine quickly without
-over-building for an agent workflow that doesn't exist yet. Four genuine captain decisions remain
-open (`docs/OPEN_DECISIONS.md`); everything else here is a recommendation confident enough to hand
+over-building. The four captain-only questions are resolved and recorded in
+`docs/OPEN_DECISIONS.md`; everything else here is a recommendation confident enough to hand
 directly to the next engineer/agent as a starting task (§5).

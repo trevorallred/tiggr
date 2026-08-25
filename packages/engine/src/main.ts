@@ -21,7 +21,7 @@ import {
 const logger = new Logger('tester')
 const MAX_LOOPS = 100
 const RESCAN_DELAY_MS = 500
-export const ENGINE_VERSION = '0.0.0'
+export const ENGINE_VERSION = '2.0.0'
 
 type RunnableTest<Config extends object> = TestRun & {
   definition: TestDefinition<Config, unknown>
