@@ -12,7 +12,7 @@ optional `verify` function can assert the result; when it is omitted, a test pas
 `run` does not throw.
 
 ```typescript
-import { runTests, test } from '@tigger/engine'
+import { resource, runTests, test } from '@tigger/engine'
 
 type Config = {
   baseUrl: string
@@ -30,7 +30,7 @@ const tests = [
     tags: ['projects'],
     provenance: {
       origin: 'issue',
-      issueLink: 'https://example.test/issues/42',
+      reference: 'https://example.test/issues/42',
       createdBy: 'test-agent',
       createdAt: '2026-08-24T00:00:00.000Z',
       reasoning: 'Protect project creation from regressions',
@@ -40,10 +40,9 @@ const tests = [
       observe({ type: 'http', method: 'POST', path: '/projects', status: response.status })
       return (await response.json()) as Project
     },
-    verify: ({ outputs, observe }) => {
-      const project = outputs.get<Project>('create-project')
-      const passed = Boolean(project?.id)
-      observe({ type: 'assertion', expected: 'a project ID', actual: project?.id, passed })
+    verify: ({ observe }, project) => {
+      const passed = Boolean(project.id)
+      observe({ type: 'assertion', expected: 'a project ID', actual: project.id, passed })
       if (!passed) throw new Error('Project ID was empty')
     },
   }),
@@ -64,17 +63,51 @@ const result = await runTests(tests, {
 
 `run` and `verify` receive the same context:
 
-- `outputs` is a read-only, Map-like view. A test's `run` return value is stored under its ID before
-  `verify` runs, and is available to downstream tests after the test passes.
-- `config` is a read-only suite-wide seed value. Use outputs, not config mutation, to pass data
-  through the graph.
+- `outputs` is a read-only, Map-like view. A test's JSON-safe `run` return value is published under
+  its ID only after `verify` succeeds. `verify` receives that just-produced value as its second
+  argument; downstream tests see only successful upstream artifacts.
+- `config` is a read-only suite-wide seed value. Plain objects and arrays are frozen in place,
+  while functions and client instances remain usable and are not cloned. Use outputs, not config
+  mutation, to pass data through the graph.
 - `observe(value)` appends a structured observation to that test's run record. Built-in shapes
   cover HTTP calls, events, polling, and assertions; custom `type` values and extra fields are
-  supported.
+  supported. Outputs and observations are normalized across an explicit JSON-value boundary;
+  circular references, class instances, dates, functions, and other non-JSON values fail the test.
 
 `intent`, `invariants`, and `provenance` are descriptive metadata only. The core does not enforce
-policy based on them. `uses` is accepted as resource metadata for the planned `resource()` layer;
-resources themselves are not part of this package yet.
+policy based on them. Provenance requires only `origin`; `reference`, `createdBy`, `createdAt`, and
+`reasoning` are optional.
+
+## Singleton resources
+
+`resource()` groups one creator and one destroyer under a logical ID. A consumer declares
+`uses: ['project']`; the engine compiles that into ordinary `dependsOn` and `tearsDown` edges before
+validation and scheduling. Resources are singleton lifecycle sugar, not a second runtime concept.
+
+```typescript
+const project = resource<Config, Project>({
+  id: 'project',
+  create: test({
+    id: 'createProject',
+    run: async ({ config }) => createProject(config.baseUrl),
+  }),
+  destroy: test({
+    id: 'archiveProject',
+    run: async ({ config, outputs }) => {
+      const created = outputs.get<Project>('createProject')
+      await archiveProject(config.baseUrl, created?.id)
+    },
+  }),
+})
+
+const createDocument = test<Config>({
+  id: 'createDocument',
+  uses: ['project'],
+  run: async () => {},
+})
+
+await runTests([project, createDocument], { config })
+```
 
 ## Scheduling and options
 
@@ -86,11 +119,13 @@ teardown runs. Independent runnable tests execute in parallel during each schedu
 
 - `config`: required read-only suite configuration
 - `dryRun`: calculate scheduling, filtering, and results without calling `run` or `verify`
-- `include`: run only matching test IDs or tags
+- `include`: run matching test IDs or tags plus their full transitive dependency closure
 - `exclude`: skip matching test IDs or tags; exclusion overrides inclusion
 - `includeStartMessage`: enable or disable progress logs
 - `showSkipped`: control skipped-test visibility in `printTestOutput`
 
-The returned `TestRunnerOutput` is the source of truth. It contains the suite result and one JSON-
-serializable record per test, including status, loop, duration, output, observations, error or skip
-reason, and descriptive metadata. `printTestOutput(result)` is an optional human-readable formatter.
+The returned `TestRunnerOutput` is the source of truth. Its run envelope includes `runId`,
+`startedAt`, `completedAt`, `engineVersion`, and optional caller-supplied JSON metadata. It also
+contains the suite result and one JSON-serializable record per test, including status, loop,
+duration, output, observations, error or skip reason, and descriptive metadata.
+`printTestOutput(result)` is an optional human-readable formatter.

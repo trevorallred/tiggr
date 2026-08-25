@@ -1,4 +1,4 @@
-import { type PassFail } from '../types'
+import { type PassFail } from '../types.js'
 
 export type TestRunSummary = {
   tags?: string[]

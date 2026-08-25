@@ -1,5 +1,5 @@
-import { runTests } from './main'
-import { test, type TestDefinition } from './types'
+import { compileDefinitions, runTests } from './main.js'
+import { resource, test, type TestDefinition } from './types.js'
 
 type Config = { baseUrl: string; headers?: { authorization: string } }
 
@@ -118,13 +118,22 @@ describe('runTests', () => {
     expect(result.tests[0]).toMatchObject({ id: 'a', passed: 'pass', observations: [] })
   })
 
-  it('detects circular dependencies', async () => {
+  it('detects circular dependencies before execution and reports the cycle path', async () => {
     await expect(
       runTests([stubTest('a', { dependsOn: ['b'] }), stubTest('b', { dependsOn: ['a'] })], {
         config,
         includeStartMessage: false,
       })
-    ).rejects.toThrow('No tests ran this loop, possible circular dependency')
+    ).rejects.toThrow('Circular dependency: a -> b -> a')
+  })
+
+  it('detects teardown cycles before execution and reports the cycle path', async () => {
+    await expect(
+      runTests([stubTest('a', { tearsDown: 'b' }), stubTest('b', { tearsDown: 'a' })], {
+        config,
+        includeStartMessage: false,
+      })
+    ).rejects.toThrow('Circular dependency: a -> b -> a')
   })
 
   it('filters by included IDs and tags', async () => {
@@ -135,6 +144,31 @@ describe('runTests', () => {
 
     expect(runs).toEqual(['by-id', 'by-tag'])
     expect(result.tests.find(({ id }) => id === 'other')?.passed).toBe('skip')
+  })
+
+  it('includes the full transitive dependency closure of selected tests', async () => {
+    const result = await runTests(
+      [
+        stubTest('root'),
+        stubTest('middle', { dependsOn: ['root'] }),
+        stubTest('selected', { dependsOn: ['middle'], tags: ['focus'] }),
+        stubTest('unrelated'),
+      ],
+      { config, include: ['focus'], includeStartMessage: false }
+    )
+
+    expect(runs).toEqual(['root', 'middle', 'selected'])
+    expect(result.tests.find(({ id }) => id === 'unrelated')?.passed).toBe('skip')
+  })
+
+  it('lets exclude destructively override an included dependency', async () => {
+    const result = await runTests(
+      [stubTest('root'), stubTest('selected', { dependsOn: ['root'] })],
+      { config, include: ['selected'], exclude: ['root'], includeStartMessage: false }
+    )
+
+    expect(runs).toEqual([])
+    expect(result.tests.map(({ passed }) => passed)).toEqual(['skip', 'skip'])
   })
 
   it('filters by excluded IDs and tags, overriding include', async () => {
@@ -171,7 +205,7 @@ describe('runTests', () => {
     expect(runs).toEqual(['create', 'remove'])
   })
 
-  it('makes each returned output available to downstream tests and verify', async () => {
+  it('publishes verified returned outputs to downstream tests', async () => {
     type Project = { id: string }
     let downstreamProject: Project | undefined
     let verifiedProject: Project | undefined
@@ -181,8 +215,9 @@ describe('runTests', () => {
         test<Config, Project>({
           id: 'create-project',
           run: ({ config: readOnlyConfig }) => ({ id: `${readOnlyConfig.baseUrl}/projects/1` }),
-          verify: ({ outputs }) => {
-            verifiedProject = outputs.get<Project>('create-project')
+          verify: ({ outputs }, output) => {
+            expect(outputs.has('create-project')).toBe(false)
+            verifiedProject = output
           },
         }),
         test<Config>({
@@ -212,12 +247,12 @@ describe('runTests', () => {
             observe({ type: 'event', name: 'document.queued', documentId: 'doc-1' })
             return { status: 202 }
           },
-          verify: ({ observe, outputs }) => {
+          verify: ({ observe }, output) => {
             observe({ type: 'poll', attempts: 3, settled: true })
             observe({
               type: 'assertion',
               expected: 202,
-              actual: outputs.get<{ status: number }>('observed')?.status,
+              actual: output.status,
               passed: true,
             })
           },
@@ -249,44 +284,95 @@ describe('runTests', () => {
 
     expect(result.tests[0]).toMatchObject({
       passed: 'fail',
-      output: 'run output',
       error: 'verification failed',
     })
+    expect(result.tests[0]).not.toHaveProperty('output')
   })
 
-  it('provides a frozen suite-wide config', async () => {
+  it('freezes plain config in place without cloning or freezing client instances', async () => {
     let receivedConfig: Readonly<Config> | undefined
+    class Client {
+      calls = 0
+      request(): void {
+        this.calls++
+      }
+    }
+    const client = new Client()
     const nestedConfig: Config = {
       baseUrl: config.baseUrl,
       headers: { authorization: 'secret' },
     }
+    const configWithClient = { ...nestedConfig, client, buildUrl: (path: string) => `${nestedConfig.baseUrl}${path}` }
     await runTests(
       [
-        stubTest('config', {
+        test<typeof configWithClient>({
+          id: 'config',
           run: ({ config: readOnlyConfig }) => {
             receivedConfig = readOnlyConfig
+            readOnlyConfig.client.request()
+            expect(readOnlyConfig.buildUrl('/ok')).toBe('https://example.test/ok')
           },
         }),
       ],
-      { config: nestedConfig, includeStartMessage: false }
+      { config: configWithClient, includeStartMessage: false }
     )
 
-    expect(receivedConfig).toEqual(nestedConfig)
+    expect(receivedConfig).toBe(configWithClient)
     expect(Object.isFrozen(receivedConfig)).toBe(true)
     expect(Object.isFrozen(receivedConfig?.headers)).toBe(true)
-    expect(receivedConfig?.headers).not.toBe(nestedConfig.headers)
+    expect(receivedConfig?.headers).toBe(nestedConfig.headers)
+    expect(Object.isFrozen(client)).toBe(false)
+    expect(client.calls).toBe(1)
+  })
+
+  it('rejects non-JSON outputs and observations instead of silently corrupting the artifact', async () => {
+    const outputResult = await runTests(
+      [stubTest('date-output', { run: () => new Date('2026-08-24T00:00:00.000Z') })],
+      { config, includeStartMessage: false }
+    )
+    expect(outputResult.tests[0]).toMatchObject({ passed: 'fail', error: 'output from date-output contains a non-plain object' })
+
+    const observationResult = await runTests(
+      [
+        stubTest('bad-observation', {
+          run: ({ observe }) => observe({ type: 'custom', value: undefined } as never),
+        }),
+      ],
+      { config, includeStartMessage: false }
+    )
+    expect(observationResult.tests[0]).toMatchObject({
+      passed: 'fail',
+      error: 'observation from bad-observation contains a non-JSON value',
+    })
+  })
+
+  it('returns a JSON-safe run envelope with caller metadata', async () => {
+    const before = new Date().toISOString()
+    const result = await runTests([stubTest('a')], {
+      config,
+      metadata: { commit: 'abc123', trigger: { kind: 'manual' } },
+      includeStartMessage: false,
+    })
+    const after = new Date().toISOString()
+
+    expect(result.runId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(result.startedAt >= before).toBe(true)
+    expect(result.completedAt <= after).toBe(true)
+    expect(result.engineVersion).toBe('0.0.0')
+    expect(result.metadata).toEqual({ commit: 'abc123', trigger: { kind: 'manual' } })
+    expect(() => JSON.stringify(result)).not.toThrow()
   })
 
   it('carries intent, invariants, uses, and provenance into the run record', async () => {
-    const provenance = {
-      origin: 'production incident',
-      issueLink: 'https://example.test/issues/1',
-      createdBy: 'agent',
-      createdAt: '2026-08-24T00:00:00.000Z',
-      reasoning: 'Prevent a regression',
-    }
+    const provenance = { origin: 'production incident' }
+    const project = resource<Config>({
+      id: 'project',
+      create: stubTest('create-project'),
+      destroy: stubTest('destroy-project'),
+    })
     const result = await runTests(
       [
+        project,
         stubTest('metadata', {
           intent: 'Projects stay isolated',
           invariants: ['Search never crosses project boundaries'],
@@ -297,12 +383,79 @@ describe('runTests', () => {
       { config, includeStartMessage: false }
     )
 
-    expect(result.tests[0]).toMatchObject({
+    const metadata = result.tests.find(({ id }) => id === 'metadata')
+    expect(metadata).toMatchObject({
       intent: 'Projects stay isolated',
       invariants: ['Search never crosses project boundaries'],
       uses: ['project'],
       provenance,
     })
-    expect(Object.hasOwn(result.tests[0] ?? {}, 'definition')).toBe(false)
+    expect(Object.hasOwn(metadata ?? {}, 'definition')).toBe(false)
+  })
+
+  it('compiles singleton resources into ordinary dependency and teardown nodes', async () => {
+    const project = resource<Config, { id: string }>({
+      id: 'project',
+      create: test({
+        id: 'createProject',
+        run: () => {
+          runs.push('createProject')
+          return { id: 'project-1' }
+        },
+      }),
+      destroy: test({
+        id: 'archiveProject',
+        run: ({ outputs }) => {
+          runs.push(`archiveProject:${outputs.get<{ id: string }>('createProject')?.id}`)
+        },
+      }),
+    })
+    const definitions = compileDefinitions<Config>([
+      project,
+      stubTest('left', { uses: ['project'] }),
+      stubTest('right', { uses: ['project'] }),
+      stubTest('fan-in', { dependsOn: ['left', 'right'] }),
+    ])
+
+    expect(definitions.find(({ id }) => id === 'left')?.dependsOn).toEqual(['createProject'])
+    expect(definitions.find(({ id }) => id === 'archiveProject')).toMatchObject({
+      uses: ['project'],
+      tearsDown: 'createProject',
+    })
+
+    const result = await runTests([project, stubTest('left', { uses: ['project'] }), stubTest('right', { uses: ['project'] }), stubTest('fan-in', { dependsOn: ['left', 'right'] })], {
+      config,
+      includeStartMessage: false,
+    })
+
+    expect(runs).toEqual(['createProject', 'left', 'right', 'fan-in', 'archiveProject:project-1'])
+    expect(result.tests.map(({ id }) => id)).toEqual(['createProject', 'archiveProject', 'left', 'right', 'fan-in'])
+  })
+
+  it('keeps resource teardown selected when a consumer is included', async () => {
+    const project = resource<Config>({
+      id: 'project',
+      create: stubTest('createProject'),
+      destroy: stubTest('archiveProject'),
+    })
+
+    const result = await runTests([project, stubTest('consumer', { uses: ['project'] }), stubTest('other')], {
+      config,
+      include: ['consumer'],
+      includeStartMessage: false,
+    })
+
+    expect(runs).toEqual(['createProject', 'consumer', 'archiveProject'])
+    expect(result.tests.find(({ id }) => id === 'other')?.passed).toBe('skip')
+  })
+
+  it('rejects missing and duplicate singleton resource definitions', async () => {
+    expect(() => compileDefinitions([stubTest('consumer', { uses: ['missing'] })])).toThrow(
+      'Resource missing not found (used by consumer)'
+    )
+
+    const one = resource({ id: 'project', create: stubTest('create-one'), destroy: stubTest('destroy-one') })
+    const two = resource({ id: 'project', create: stubTest('create-two'), destroy: stubTest('destroy-two') })
+    expect(() => compileDefinitions([one, two])).toThrow('Duplicate resource id: project')
   })
 })

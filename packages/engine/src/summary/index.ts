@@ -1,7 +1,7 @@
-import { type TestRunnerOutput, type PassFail } from '../types'
-import * as color from './color'
-import { simplifyRunnerOutput } from './reduce'
-import { type TestRunSummary } from './types'
+import { type TestRunnerOutput, type PassFail } from '../types.js'
+import * as color from './color.js'
+import { simplifyRunnerOutput } from './reduce.js'
+import { type TestRunSummary } from './types.js'
 
 export function printTestOutput(raw: TestRunnerOutput): string {
   const { showSkipped = false } = raw

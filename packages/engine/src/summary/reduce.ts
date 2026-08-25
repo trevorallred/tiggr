@@ -1,5 +1,5 @@
-import { type TestRunnerOutput, type PassFail, type TestRun } from '../types'
-import { type TestRunSummary, type TestSummary } from './types'
+import { type TestRunnerOutput, type PassFail, type TestRun } from '../types.js'
+import { type TestRunSummary, type TestSummary } from './types.js'
 
 export function simplifyRunnerOutput(input: TestRunnerOutput): TestRunSummary {
   const originalTests = input.tests
