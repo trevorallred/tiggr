@@ -1,7 +1,7 @@
-# Tiggr 2 — Plan
+# Tiggr — Plan
 
-> **Preamble.** This public repository is the standalone continuation of Tiggr 2, an agent-era
-> successor to an earlier private integration-test engine. `packages/engine/` began as the ported
+> **Preamble.** This public repository contains Tiggr, an agent-era successor to an earlier
+> private integration-test engine. `packages/engine/` began as the ported
 > Tiggr 1 baseline; CI is green, and Phase 1 is now implemented.
 >
 > See also `docs/OPEN_DECISIONS.md` for the captain's decision record. All four questions from the
@@ -9,7 +9,7 @@
 
 ---
 
-# Tiggr 2 — Build Plan
+# Tiggr — Build Plan
 
 **Scope note:** this plan was produced by a scout/planning pass against the earlier private
 implementation. Its assessment was verified against that engine's passing test suite (21/21).
@@ -90,11 +90,11 @@ framing (migration cost) doesn't actually apply yet. Point by point:
 - **"Eliminate shared mutable state" — worth doing, but not because of migration cost.** The
   original brief for this plan asked whether this is worth the migration cost given Tiggr 1's
   entire private consumer suite (~50 domains) relies
-  on shared mutable `state`. My honest read: **that framing doesn't apply here.** Tiggr 2 starts
+  on shared mutable `state`. My honest read: **that framing doesn't apply here.** Tiggr starts
   with zero consumers other than its own sample app — `packages/integration` keeps using Tiggr 1
   unless and until the captain separately decides to port it, which is its own open question (see
   `migration-compat` in `OPEN_DECISIONS.md`). So there is no existing-suite migration cost to weigh
-  *right now*. The captain has since chosen a clean break for Tiggr 2. Judged purely on its own
+  *right now*. The captain has since chosen a clean break for Tiggr. Judged purely on its own
   merits for a new engine, explicit `outputs` (a `Map`-like
   store of `{ id -> whatever that test's run() returned }`, read via `ctx.outputs.get(id)`) is
   worth it: it's what makes "data provenance through the graph" (a real, concrete agent-debugging
@@ -112,7 +112,7 @@ framing (migration cost) doesn't actually apply yet. Point by point:
   This mechanism's real job in `packages/integration` was incidental, not load-bearing — the actual
   cross-run isolation mechanism was `loginGroup` (a config value namespacing throwaway
   company/users), and CI always started from an empty `output/` anyway since it was gitignored.
-  What Tiggr 2 actually wants instead is a **history of what happened**, not a resumable mutable
+  What Tiggr actually wants instead is a **history of what happened**, not a resumable mutable
   blob — i.e., persist each run's full structured JSON under a run-id
   (`.tiggr/runs/<run-id>.json`), which is a fundamentally different and more useful artifact than
   the old `state.json`. This directly enables `tiggr inspect <run-id>` from the CLI sketch below.
@@ -132,7 +132,7 @@ framing (migration cost) doesn't actually apply yet. Point by point:
   Tiggr, not a Tiggr feature, and there's no implementation here to mutate yet (the sample app is
   a toy). Not scoped into any phase; it's a "someday, if the rest proves out" idea.
 - **Any internal proprietary dependency.** The predecessor depended on private utility packages
-  for logging and error normalization. Tiggr 2 is standalone and open source, so it must not
+  for logging and error normalization. Tiggr is standalone and open source, so it must not
   depend on packages that public consumers cannot resolve. This is already done:
   `packages/engine/` implements the handful of needed utilities under
   `packages/engine/src/util/`.
@@ -154,11 +154,11 @@ engine was ~264 lines).
 - CI: a GitHub Actions workflow that installs, builds, typechecks, and runs the engine's unit tests
   on every PR — **live and green.**
 - This phase's deliverable (an installable, structured repo with the ported baseline engine) is
-  done; Tiggr-2-specific primitives below are not yet started.
+  done; Tiggr-specific primitives below are not yet started.
 
 ### Phase 1 — v0 / MVP: core engine + first agent-native primitives + sample app + dogfood CI — **DONE**
 
-This phase is where Tiggr 2 became "Tiggr 2" rather than "Tiggr 1 copied into a new repo."
+This phase is where the rewrite became version 2 rather than "Tiggr 1 copied into a new repo."
 Delivered:
 
 - **DAG engine, rewritten clean** (not copy-pasted): `dependsOn`, `tearsDown` (still available as
@@ -184,7 +184,7 @@ Delivered:
   run") to a later phase; singleton coverage is exactly what the sample app in §3 needs, and
   Tiggr 1's own teardown-ordering logic was already its trickiest, most bug-prone-feeling code —
   worth getting solid unit-test coverage on this before generalizing it further.
-- **JSON-first output**: `runTests()` (or its Tiggr-2-renamed equivalent) returns one structured
+- **JSON-first output**: `runTests()` (or its final API equivalent) returns one structured
   object; the CLI defaults to emitting that as JSON, with a human-pretty renderer built as a
   separate formatter on top of it rather than the source of truth.
 - **CLI v0**: `tiggr run [ids...]`, `--dry-run`, `--include`, `--exclude`, `--json` (or JSON
@@ -326,7 +326,7 @@ These decisions no longer block later phases.
 The first implementation PR was scoped to the riskiest architectural bet before anything was
 built on top of it:
 
-> **Build the Tiggr 2 engine core** — the rewritten DAG scheduler (`dependsOn`/`tearsDown`/`tags`/
+> **Build the Tiggr engine core** — the rewritten DAG scheduler (`dependsOn`/`tearsDown`/`tags`/
 > parallel-per-loop/circular-detection/`dryRun`, no internal proprietary dependency — already
 > true here), the `test({ run, verify? })` API replacing `evaluate`, explicit `outputs` replacing
 > shared mutable state, and structured `observe()` observations. Ship it with its own vitest
@@ -348,7 +348,7 @@ The proposal's direction is sound and most of it is worth implementing. The narr
 don't build authority-enforcement/triage tooling before an agent exists to need it, don't chase
 full static typing across the outputs graph, don't carry forward Tiggr 1's cross-run `state.json`
 persistence (replace it with immutable per-run history instead), and don't treat "eliminate shared
-mutable state" as a migration-cost question — it isn't one, since Tiggr 2 has no existing
+mutable state" as a migration-cost question — it isn't one, since Tiggr has no existing
 consumers to migrate. The phased plan above (Phase 0 and Phase 1 done, including dogfood CI against
 an in-repo sample app; Phase 2 explorations/history/lightweight policy;
 Phase 3 speculative) delivers a working, meaningfully "agent-era" engine quickly without

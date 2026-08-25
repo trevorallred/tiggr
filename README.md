@@ -1,11 +1,11 @@
 # Tiggr
 
-Tiggr 2: an agent-era, dependency-aware integration-test execution engine, rebuilt as a standalone
+Tiggr is an agent-era, dependency-aware integration-test execution engine, rebuilt as a standalone
 open-source project from an earlier private implementation.
 
 This repo is a pnpm workspace:
 
-- `packages/engine/` — the Tiggr 2 DAG engine core, with explicit per-test outputs, structured
+- `packages/engine/` — the Tiggr DAG engine core, with explicit per-test outputs, structured
   observations, and separate `run`/`verify` callbacks. It has no dependency on any internal
   proprietary package. See `packages/engine/README.md` for usage.
 - `packages/cli/` — the JSON-first `tiggr run` command. It loads `tiggr.config.mjs` or
@@ -24,5 +24,5 @@ pnpm run test
 pnpm --filter @tiggr/sample-app dogfood
 ```
 
-See `docs/TIGGER2_PLAN.md` for the phased build plan and `docs/OPEN_DECISIONS.md` for the captain's
+See `docs/PLAN.md` for the phased build plan and `docs/OPEN_DECISIONS.md` for the captain's
 decision record.
