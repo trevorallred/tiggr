@@ -1,7 +1,7 @@
-# Captain decisions — Tiggr 2
+# Captain decisions — Tiggr
 
 The four captain-only questions from the original planning pass are now resolved. They no longer
-block Phase 2 or Phase 3 of `docs/TIGGER2_PLAN.md`.
+block Phase 2 or Phase 3 of `docs/PLAN.md`.
 
 ## 1. Migration path from Tiggr 1
 
@@ -11,14 +11,14 @@ The captain's direct answer was: **"Clean break: this is a breaking change, ship
 version 2.0.0, with no compatibility shim or migration tooling for users of the predecessor
 package."**
 
-Tiggr 2 therefore does not carry a compatibility or migration workstream for the live Tiggr 1
+Tiggr therefore does not carry a compatibility or migration workstream for the live Tiggr 1
 integration suite.
 
 ## 2. Open source and license
 
 **Status: DECIDED — yes; MIT.**
 
-The captain's direct answer to open-sourcing Tiggr 2 was: **"Yes."** The repository is public,
+The captain's direct answer to open-sourcing Tiggr was: **"Yes."** The repository is public,
 and the captain subsequently selected the MIT License for the project and npm package.
 
 ## 3. AI-driven test-authoring and agent features
