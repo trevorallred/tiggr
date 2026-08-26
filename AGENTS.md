@@ -18,7 +18,8 @@ under `packages/`, not a restructure.
   needs (e.g. no AWS Lambda JSON log formatting). Keep the engine standalone. Its `build/` output
   is tracked so it works as a git dependency; update it with the source changes.
 - `packages/cli/` — the JSON-first `tiggr run` binary. It discovers a `tiggr.config.mjs` or
-  `tiggr.config.js` suite in the caller's current directory.
+  `tiggr.config.js` suite in the caller's current directory. Its `build/` output is tracked so it
+  works as a git dependency; update it with the source changes.
 - `sample-app/` — the private HTTP dogfood target and suite. `pnpm --filter @tiggr/sample-app
   dogfood` boots it on an ephemeral port and verifies the built CLI's complete JSON run artifact.
 
