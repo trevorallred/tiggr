@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { parseCliArgs, formatOutput } from './cli.js'
 import type { TestRunnerOutput } from 'tiggr'
 
@@ -41,5 +43,17 @@ describe('CLI v0', () => {
       tests: [],
     }
     expect(JSON.parse(formatOutput(result, 'json'))).toEqual(result)
+  })
+
+  it('ships a standalone bundle without a runtime tiggr package dependency', () => {
+    const packageRoot = resolve(import.meta.dirname, '..')
+    const manifest = JSON.parse(readFileSync(resolve(packageRoot, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>
+    }
+    const bundle = readFileSync(resolve(packageRoot, 'build/cli.js'), 'utf8')
+
+    expect(manifest.dependencies?.tiggr).toBeUndefined()
+    const runtimeTiggrImport = /(?:from\s*|import\s*\()['"]tiggr['"]/
+    expect(bundle).not.toMatch(runtimeTiggrImport)
   })
 })
