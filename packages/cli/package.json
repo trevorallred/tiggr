@@ -18,16 +18,15 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsc --build && esbuild src/cli.ts --bundle --platform=node --format=esm --target=node24 --outfile=build/cli.js",
     "clean": "rm -rf build && rm -f tsconfig.tsbuildinfo",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "dependencies": {
-    "tiggr": "workspace:*"
-  },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "esbuild": "^0.27.0",
+    "tiggr": "workspace:*",
     "typescript": "^6.0.2",
     "vitest": "^4.1.0"
   }
