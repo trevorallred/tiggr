@@ -15,7 +15,8 @@ under `packages/`, not a restructure.
   teardown/polling loop in `packages/engine/src/scheduler.ts`). Deliberately has **zero** dependency
   on any internal proprietary package: the handful of utilities it still uses (`Logger` and `messageFromError`) are
   reimplemented locally under `packages/engine/src/util/`, trimmed to only what Tiggr actually
-  needs (e.g. no AWS Lambda JSON log formatting). Keep the engine standalone.
+  needs (e.g. no AWS Lambda JSON log formatting). Keep the engine standalone. Its `build/` output
+  is tracked so it works as a git dependency; update it with the source changes.
 - `packages/cli/` — the JSON-first `tiggr run` binary. It discovers a `tiggr.config.mjs` or
   `tiggr.config.js` suite in the caller's current directory.
 - `sample-app/` — the private HTTP dogfood target and suite. `pnpm --filter @tiggr/sample-app
