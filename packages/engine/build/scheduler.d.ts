@@ -27,4 +27,3 @@ export declare class Scheduler<Config extends object> {
     private contextFor;
     private result;
 }
-//# sourceMappingURL=scheduler.d.ts.map

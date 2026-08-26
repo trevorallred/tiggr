@@ -1,5 +1,5 @@
 import { runTests } from './main.js'
-import { config, resetRuns, runs, stubTest } from './test-helpers.js'
+import { config, resetRuns, runs, stubTest } from '../test/test-helpers.js'
 
 beforeEach(resetRuns)
 

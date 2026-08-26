@@ -44,6 +44,11 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Verify committed engine build is current
+        run: |
+          pnpm --filter tiggr build
+          git diff --exit-code -- packages/engine/build
+
       - name: Test
         run: pnpm run test
 

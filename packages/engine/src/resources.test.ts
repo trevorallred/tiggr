@@ -1,6 +1,6 @@
 import { compileDefinitions, runTests } from './main.js'
 import { resource, test } from './types.js'
-import { config, type Config, resetRuns, runs, stubTest } from './test-helpers.js'
+import { config, type Config, resetRuns, runs, stubTest } from '../test/test-helpers.js'
 
 beforeEach(resetRuns)
 
