@@ -1,4 +1,4 @@
-import { type TestDefinition } from './types.js'
+import { type TestDefinition } from '../src/types.js'
 
 export type Config = { baseUrl: string; headers?: { authorization: string } }
 

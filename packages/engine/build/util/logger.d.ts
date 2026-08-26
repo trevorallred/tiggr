@@ -20,4 +20,3 @@ export declare class Logger {
     log(level: Level, message: unknown, ...other: unknown[]): void;
 }
 export {};
-//# sourceMappingURL=logger.d.ts.map
