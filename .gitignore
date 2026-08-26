@@ -2,6 +2,8 @@ node_modules/
 build/
 !packages/engine/build/
 !packages/engine/build/**
+!packages/cli/build/
+!packages/cli/build/**
 output/
 *.tsbuildinfo
 .DS_Store

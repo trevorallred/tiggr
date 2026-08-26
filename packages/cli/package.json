@@ -12,6 +12,11 @@
       "import": "./build/cli.js"
     }
   },
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc --build",
     "clean": "rm -rf build && rm -f tsconfig.tsbuildinfo",
