@@ -148,4 +148,7 @@ The returned `TestRunnerOutput` is the source of truth. Its run envelope include
 `startedAt`, `completedAt`, `engineVersion`, and optional caller-supplied JSON metadata. It also
 contains the suite result and one JSON-serializable record per test, including status, loop,
 duration, output, observations, error or skip reason, and descriptive metadata.
+When `result.result === 'pass'`, every declared test completed and passed; check `result.result`
+alone for overall success. Use `result.tests` for per-test diagnostic detail (such as errors or
+observations) on failure, rather than re-verifying which tests ran or their individual pass status.
 `printTestOutput(result)` is an optional human-readable formatter.
