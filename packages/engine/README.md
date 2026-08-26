@@ -5,6 +5,26 @@ keeps test data provenance explicit through per-test outputs, and captures struc
 as part of each run record. It has no knowledge of any application domain and no dependency on
 internal proprietary packages.
 
+## Installing from Git
+
+The engine can be installed directly from this repository without being published to npm:
+
+```sh
+pnpm add tiggr@github:trevorallred/tiggr#path:packages/engine
+```
+
+The committed `build/` output is included for git consumers, so installation does not run a
+lifecycle script and needs no `pnpm.onlyBuiltDependencies` (or other consumer-side build
+permission). Pin a commit or tag for a reproducible dependency, for example:
+
+```json
+{
+  "dependencies": {
+    "tiggr": "github:trevorallred/tiggr#<commit-or-tag>&path:packages/engine"
+  }
+}
+```
+
 ## Defining tests
 
 Use `test()` to define an ID, an optional set of dependencies, and a `run` function. A separate
